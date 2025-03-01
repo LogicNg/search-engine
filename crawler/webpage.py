@@ -1,3 +1,6 @@
+from typing import Dict, Optional
+
+
 def fetch_webpage(url: str) -> Dict[str, Optional[str]]:
     """
     Fetches the content of a webpage using the provided URL.
