@@ -1,6 +1,8 @@
 from typing import Dict, Optional
-from bs4 import BeautifulSoup
+
 import requests
+from bs4 import BeautifulSoup
+
 
 def fetch_webpage(url: str) -> Dict[str, Optional[str]]:
     """
@@ -16,12 +18,12 @@ def fetch_webpage(url: str) -> Dict[str, Optional[str]]:
     """
     response = requests.get(url)
     html_content = response.text
-    last_modified = response.headers.get('Last-Modified')
+    last_modified = response.headers.get("Last-Modified")
     Dict = {}
     Dict["html"] = html_content
     Dict["last_modified"] = last_modified
     return Dict
-    #raise NotImplementedError("This function is not implemented yet.")
+    # raise NotImplementedError("This function is not implemented yet.")
 
 
 def parse_webpage(html: str) -> Dict[str, Optional[object]]:
@@ -37,16 +39,36 @@ def parse_webpage(html: str) -> Dict[str, Optional[object]]:
             - "body_text" (str): The combined text of the body content.
             - "urls" (List[str]): A list of all URLs found in anchor tags.
     """
-    soup = BeautifulSoup(html, 'html.parser')
+    soup = BeautifulSoup(html, "html.parser")
     title = soup.title.string if soup.title else None
-    body_text = ' '.join(p.get_text() for p in soup.find_all('p'))
-    urls = [a['href'] for a in soup.find_all('a', href=True)]
+    body_text = " ".join(p.get_text() for p in soup.find_all("p"))
+    urls = [a["href"] for a in soup.find_all("a", href=True)]
     Dict = {}
     Dict["title"] = title
     Dict["body_text"] = body_text
     Dict["urls"] = urls
     return Dict
-    #raise NotImplementedError("This function is not implemented yet.")
+    # raise NotImplementedError("This function is not implemented yet.")
+
+
+def recursive_fetch(base_url: str):
+    """
+    Recursively fetches webpages starting from the given base URL using a breadth-first search (BFS) approach.
+
+    Args:
+        base_url (str): The starting URL from which to begin fetching.
+
+    Returns:
+        List[Dict[str, Optional[str]]]: A list of dictionaries, each containing:
+            - "last_modified" (str or None): The value of the "Last-Modified" header for the fetched webpage, if available; otherwise None.
+            - "parent_url" (str): The URL of the parent webpage that initiated the fetch.
+            - "html" (str): The HTML content of the fetched webpage.
+
+    This function will continue to fetch and parse webpages until all reachable URLs have been visited, ensuring that each URL is fetched only once.
+    """
+    raise NotImplementedError()
+
+
 if __name__ == "__main__":
     res = fetch_webpage("https://example.com")
     print(res["last_modified"])
