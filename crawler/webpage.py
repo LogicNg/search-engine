@@ -1,4 +1,5 @@
 from typing import Dict, Optional
+from bs4 import BeautifulSoup
 import requests
 
 def fetch_webpage(url: str) -> Dict[str, Optional[str]]:
@@ -36,4 +37,13 @@ def parse_webpage(html: str) -> Dict[str, Optional[object]]:
             - "body_text" (str): The combined text of the body content.
             - "urls" (List[str]): A list of all URLs found in anchor tags.
     """
-    raise NotImplementedError("This function is not implemented yet.")
+    soup = BeautifulSoup(html, 'html.parser')
+    title = soup.title.string if soup.title else None
+    body_text = ' '.join(p.get_text() for p in soup.find_all('p'))
+    urls = [a['href'] for a in soup.find_all('a', href=True)]
+    Dict = {}
+    Dict["title"] = title
+    Dict["body_text"] = body_text
+    Dict["urls"] = urls
+    return Dict
+    #raise NotImplementedError("This function is not implemented yet.")
