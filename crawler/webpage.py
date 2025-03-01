@@ -1,5 +1,5 @@
 from typing import Dict, Optional
-
+import requests
 
 def fetch_webpage(url: str) -> Dict[str, Optional[str]]:
     """
@@ -17,7 +17,8 @@ def fetch_webpage(url: str) -> Dict[str, Optional[str]]:
     html_content = response.text
     last_modified = response.headers.get('Last-Modified')
     Dict = {}
-    Dict[html_content] = last_modified
+    Dict["html"] = html_content
+    Dict["last_modified"] = last_modified
     return Dict
     #raise NotImplementedError("This function is not implemented yet.")
 
