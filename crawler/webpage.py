@@ -13,7 +13,13 @@ def fetch_webpage(url: str) -> Dict[str, Optional[str]]:
             - "html" (str): The HTML content of the webpage.
             - "last_modified" (str or None): The value of the "Last-Modified" header if available, otherwise None.
     """
-    raise NotImplementedError("This function is not implemented yet.")
+    response = requests.get(url)
+    html_content = response.text
+    last_modified = response.headers.get('Last-Modified')
+    Dict = {}
+    Dict[html_content] = last_modified
+    return Dict
+    #raise NotImplementedError("This function is not implemented yet.")
 
 
 def parse_webpage(html: str) -> Dict[str, Optional[object]]:
