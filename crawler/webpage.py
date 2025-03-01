@@ -47,3 +47,7 @@ def parse_webpage(html: str) -> Dict[str, Optional[object]]:
     Dict["urls"] = urls
     return Dict
     #raise NotImplementedError("This function is not implemented yet.")
+if __name__ == "__main__":
+    res = fetch_webpage("https://example.com")
+    print(res["last_modified"])
+    print(parse_webpage(res["html"]))
