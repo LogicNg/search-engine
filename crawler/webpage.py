@@ -53,23 +53,27 @@ def parse_webpage(html: str) -> Dict[str, Optional[object]]:
 
 def recursive_fetch(base_url: str):
     """
-    Recursively fetches webpages starting from the given base URL using a breadth-first search (BFS) approach.
+    Recursively fetches webpages starting from the specified base URL using a breadth-first search (BFS) strategy while avoiding cyclic links.
 
     Args:
-        base_url (str): The starting URL from which to begin fetching.
+        base_url (str): The initial URL from which to begin fetching webpages.
 
     Returns:
         List[Dict[str, Optional[str]]]: A list of dictionaries, each containing:
-            - "last_modified" (str or None): The value of the "Last-Modified" header for the fetched webpage, if available; otherwise None.
-            - "parent_url" (str): The URL of the parent webpage that initiated the fetch.
-            - "html" (str): The HTML content of the fetched webpage.
+            - "body_text" (str): The main text content of the fetched webpage.
+            - "last_modified" (str or None): The value of the "Last-Modified" header for the fetched webpage, if available; otherwise, None.
+            - "parent_url" (str or None): The URL of the webpage that initiated the fetch; can be None for the root URL.
+            - "title" (str): The title of the fetched webpage.
+            - "url" (str): The URL of the fetched webpage.
 
-    This function will continue to fetch and parse webpages until all reachable URLs have been visited, ensuring that each URL is fetched only once.
+    This function will continue to fetch and parse webpages until all reachable URLs are visited, ensuring that:
+    - Each URL is fetched only once, preventing infinite loops caused by cyclic links.
+    - Successfully handles and tracks previously visited URLs to avoid redundant fetches.
     """
     raise NotImplementedError()
 
 
 if __name__ == "__main__":
-    res = fetch_webpage("https://example.com")
+    res = fetch_webpage("https://www.cse.ust.hk/~kwtleung/COMP4321/testpage.htm")
     print(res["last_modified"])
     print(parse_webpage(res["html"]))
