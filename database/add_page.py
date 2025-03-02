@@ -27,3 +27,7 @@ def add_page(
     Notes:
         Check the database schema to know what fields to insert.
     """
+
+    
+
+    #raise NotImplementedError()
