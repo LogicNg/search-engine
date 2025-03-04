@@ -67,7 +67,7 @@ sql_statements = [
             term_frequency INT NOT NULL,
             PRIMARY KEY (word_id, page_id)
             FOREIGN KEY (word_id) REFERENCES word_mapping (word_id),
-            FOREIGN KEY (page_id) REFERENCES url_mapping (page_id),
+            FOREIGN KEY (page_id) REFERENCES url_mapping (page_id)
         );
     """,
     """
@@ -108,7 +108,38 @@ def create_tables():
 
     #raise NotImplementedError("This function is not implemented yet.")
 
+def drop_table(table_name):
+    """
+    Drop a table from the database.
+
+    Args:
+        table_name (str): The name of the table to drop.
+
+    Returns:
+        None: This function does not return any value.
+    """
+    try:
+        cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+        connection.commit()
+    except Exception as e:
+        print("Failed to drop table:", e)
+
+def drop_all_table():
+    """
+    Drop all tables from the database.
+
+    Returns:
+        None: This function does not return any value.
+    """
+    try:
+        for sql in sql_statements:
+            table_name = sql.split()[2]
+            cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+        connection.commit()
+    except Exception as e:
+        print("Failed to drop tables:", e)
 
 if __name__ == "__main__":
     create_tables()
-    print("Tables created successfully!")
+    #print("Tables created successfully.")
+    #drop_all_table()
