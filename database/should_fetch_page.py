@@ -1,3 +1,5 @@
+from db import cursor, connection
+
 def should_fetch_page(url: str, last_modified: str):
     """
     Determine whether a webpage should be fetched based on its URL and last modified date.
@@ -18,4 +20,17 @@ def should_fetch_page(url: str, last_modified: str):
     Returns:
         bool: True if the page should be fetched, False otherwise.
     """
-    raise NotImplementedError()
+
+    sql = "SELECT url, last_modified FROM forward_index WHERE url = %s"
+    cursor.execute(sql, (url,))
+    result = cursor.fetchone()
+
+    if result is None:
+        return True
+    elif result[1] == last_modified:
+        return False
+    else:
+        return True
+    
+    
+    #raise NotImplementedError()
