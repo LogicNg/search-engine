@@ -41,11 +41,8 @@ def add_page(
     page_id = int(page_id[:8], 16)
     #print(page_id)
 
-    if page_id in page_ids:
+    while page_id in page_ids:
         page_id = page_id + 1
-        
-
-        
     
     page_ids.append(page_id)
 
