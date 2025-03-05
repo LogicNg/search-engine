@@ -82,6 +82,8 @@ def create_tables():
         for sql in sql_statements:
             cursor.execute(sql)
         
+        
+
         connection.commit() 
 
     except Exception as e:

@@ -10,6 +10,7 @@ def add_page(
     last_modified: str,
     parent_url: str | None,
     title: str,
+    child_links: list[str],
     url: str,
 ):
     """
@@ -38,37 +39,40 @@ def add_page(
     # Hash the URL to generate a unique identifier for the page
     page_id = hashlib.md5(url.encode()).hexdigest()
     page_id = int(page_id[:8], 16)
-    print(page_id)
+    #print(page_id)
 
     if page_id in page_ids:
-        return
+        page_id = page_id + 1
+        
+
+        
     
     page_ids.append(page_id)
 
     try:
-        #Insert the page into the url_mapping table
+        #Insert the page into the url_mapping table, if the page does not exist
         sql = "INSERT INTO url_mapping (page_id, url) VALUES (?, ?)"
         cursor.execute(sql, (page_id, url))
 
-        #Get the parent page id from table url_mapping
-        sql = "SELECT page_id FROM url_mapping WHERE url = ?"
-        cursor.execute(sql, (parent_url,))
-        parent_page_id = cursor.fetchone()
-
-        if parent_page_id is not None:
-            parent_page_id = parent_page_id[0]
-        else:
-            parent_page_id = None
-
-
-        #Insert the page into the forward_index table
+         #Insert the page into the forward_index table
         sql = "INSERT INTO forward_index (page_id, title, last_modified_date, size, child_links) VALUES (?, ?, ?, ?, ?)"
-        cursor.execute(sql, (page_id, title, last_modified, len(body_text), json.dumps([])))
+        cursor.execute(sql, (page_id, title, last_modified, len(body_text), json.dumps(child_links)))
 
-        #Insert the page into the page_relationships table
-        sql = "INSERT INTO page_relationships (parent_page_id, child_page_id) VALUES (?, ?)"
-        cursor.execute(sql, (parent_page_id, page_id))
 
+        #Get the parent page id from table url_mapping
+        if parent_url is not None:
+            sql = "SELECT page_id FROM url_mapping WHERE url = ?"
+            cursor.execute(sql, (parent_url,))
+            parent_page_id = cursor.fetchone()
+
+            if parent_page_id is not None:
+                parent_page_id = parent_page_id[0]
+                #Insert the page into the page_relationships table
+                sql = "INSERT INTO page_relationships (parent_page_id, child_page_id) VALUES (?, ?)"
+                cursor.execute(sql, (parent_page_id, page_id))
+        else:
+            sql = "INSERT INTO page_relationships (parent_page_id, child_page_id) VALUES (?, ?)"
+            cursor.execute(sql, (0, page_id))
         connection.commit()
     
     except Exception as e:
@@ -78,9 +82,10 @@ def add_page(
 
 
 add_page(
-    body_text="This is the body text of the page.",
-    last_modified="Tue, 16 May 2023 05:03:16 GMT",
-    parent_url="https://www.example.com/page1",
-    title="Example Page",
-    url="https://www.example.com/page1",
+    body_text="Test",
+    last_modified="Thurs, 21 May 2023 05:03:16 GMT",
+    parent_url=None,
+    title="Example Page 3",
+    url="https://www.example666.com/page1",
+    child_links=[]
 )
