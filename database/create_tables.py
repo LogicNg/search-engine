@@ -122,7 +122,8 @@ def drop_all_table():
     except Exception as e:
         print("Failed to drop tables:", e)
 
-if __name__ == "__main__":
-    create_tables()
-    #print("Tables created successfully.")
-    #drop_all_table()
+
+#Test
+#create_tables()
+#print("Tables created successfully.")
+#drop_all_table()

@@ -42,6 +42,8 @@ def should_fetch_page(url: str, last_modified: str):
 
     #raise NotImplementedError()
 
-#Test
+'''
+Test
 print(should_fetch_page("https://www.example.com", "Tue, 16 May 2023 05:03:16 GMT")) #True
 print(should_fetch_page("https://www.example.com/page1", "Tue, 16 May 2023 05:03:16 GMT")) #False
+'''
