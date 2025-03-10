@@ -1,4 +1,6 @@
-from typing import Dict, Optional
+from collections import deque
+from typing import Dict, List, Optional, Set
+from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
@@ -19,19 +21,19 @@ def fetch_webpage(url: str) -> Dict[str, Optional[str]]:
     response = requests.get(url)
     html_content = response.text
     last_modified = response.headers.get("Last-Modified")
-    Dict = {}
-    Dict["html"] = html_content
-    Dict["last_modified"] = last_modified
-    return Dict
-    # raise NotImplementedError("This function is not implemented yet.")
+    return {
+        "html": html_content,
+        "last_modified": last_modified,
+    }
 
 
-def parse_webpage(html: str) -> Dict[str, Optional[object]]:
+def parse_webpage(html: str, base_url: str) -> Dict[str, Optional[object]]:
     """
     Parses the webpage HTML to extract the title, body text, and all URLs.
 
     Args:
         html (str): The HTML content of the webpage.
+        base_url (str): The base URL to resolve relative URLs.
 
     Returns:
         Dict[str, Optional[object]]: A dictionary containing:
@@ -42,16 +44,15 @@ def parse_webpage(html: str) -> Dict[str, Optional[object]]:
     soup = BeautifulSoup(html, "html.parser")
     title = soup.title.string if soup.title else None
     body_text = " ".join(p.get_text() for p in soup.find_all("p"))
-    urls = [a["href"] for a in soup.find_all("a", href=True)]
+    urls = [urljoin(base_url, a["href"]) for a in soup.find_all("a", href=True)]
     Dict = {}
     Dict["title"] = title
     Dict["body_text"] = body_text
     Dict["urls"] = urls
     return Dict
-    # raise NotImplementedError("This function is not implemented yet.")
 
 
-def recursive_fetch(base_url: str):
+def recursive_fetch(base_url: str) -> List[Dict[str, Optional[str]]]:
     """
     Recursively fetches webpages starting from the specified base URL using a breadth-first search (BFS) strategy while avoiding cyclic links.
 
@@ -70,10 +71,38 @@ def recursive_fetch(base_url: str):
     - Each URL is fetched only once, preventing infinite loops caused by cyclic links.
     - Successfully handles and tracks previously visited URLs to avoid redundant fetches.
     """
-    raise NotImplementedError()
+    visited: Set[str] = set()
+    queue = deque([(base_url, None)])  # (current_url, parent_url)
+    results = []
+
+    while queue:
+        current_url, parent_url = queue.popleft()
+        if current_url in visited:
+            continue
+
+        visited.add(current_url)
+        try:
+            print(current_url)
+            webpage = fetch_webpage(current_url)
+            parsed_data = parse_webpage(webpage["html"], current_url)
+            result = {
+                "body_text": parsed_data["body_text"],
+                "last_modified": webpage["last_modified"],
+                "parent_url": parent_url,
+                "title": parsed_data["title"],
+                "url": current_url,
+            }
+            results.append(result)
+
+            for url in parsed_data["urls"]:
+                if url not in visited:
+                    queue.append((url, current_url))
+        except Exception as e:
+            print(f"Failed to fetch {current_url}: {e}")
+
+    return results
 
 
 if __name__ == "__main__":
-    res = fetch_webpage("https://www.cse.ust.hk/~kwtleung/COMP4321/testpage.htm")
-    print(res["last_modified"])
-    print(parse_webpage(res["html"]))
+    url = "https://www.cse.ust.hk/~kwtleung/COMP4321/testpage.htm"
+    res = recursive_fetch(url)
