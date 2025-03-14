@@ -1,6 +1,6 @@
-from db import cursor, connection
+from database.db import connection, cursor
 
-'''
+"""
 Table in total:
 1. page_relationships
 2. url_mapping
@@ -9,20 +9,22 @@ Table in total:
 5. inverted_index
 6. keyword_statistics
 7. page_rank
-'''
+"""
 
 sql_statements = [
+    """
+        CREATE TABLE IF NOT EXISTS url_mapping (
+            page_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            url TEXT UNIQUE NOT NULL
+        );
+    """,
     """
         CREATE TABLE IF NOT EXISTS page_relationships (
             parent_page_id INT NOT NULL,
             child_page_id INT NOT NULL,
-            PRIMARY KEY (parent_page_id, child_page_id)
-        );
-    """,
-    """
-        CREATE TABLE IF NOT EXISTS url_mapping (
-            page_id INT PRIMARY KEY,
-            url TEXT UNIQUE NOT NULL
+            PRIMARY KEY (parent_page_id, child_page_id),
+            FOREIGN KEY (parent_page_id) REFERENCES url_mapping (page_id),
+            FOREIGN KEY (child_page_id) REFERENCES url_mapping (page_id)
         );
     """,
     """
@@ -46,7 +48,7 @@ sql_statements = [
             word_id INT NOT NULL,
             page_id INT NOT NULL,
             term_frequency INT NOT NULL,
-            PRIMARY KEY (word_id, page_id)
+            PRIMARY KEY (word_id, page_id),
             FOREIGN KEY (word_id) REFERENCES word_mapping (word_id),
             FOREIGN KEY (page_id) REFERENCES url_mapping (page_id)
         );
@@ -57,7 +59,7 @@ sql_statements = [
             page_id INT NOT NULL,
             tf_idf FLOAT NOT NULL,
             PRIMARY KEY (word_id, page_id),
-            FOREIGN KEY (word_id) REFERENCES word_mapping (word_id)
+            FOREIGN KEY (word_id) REFERENCES word_mapping (word_id),
             FOREIGN KEY (page_id) REFERENCES url_mapping (page_id)
         );
     """,
@@ -67,8 +69,9 @@ sql_statements = [
             page_rank FLOAT NOT NULL,
             FOREIGN KEY (page_id) REFERENCES url_mapping (page_id)
         );
-    """
+    """,
 ]
+
 
 def create_tables():
     """
@@ -81,15 +84,14 @@ def create_tables():
     try:
         for sql in sql_statements:
             cursor.execute(sql)
-        
-        
 
-        connection.commit() 
+        connection.commit()
 
     except Exception as e:
         print("Failed to create tables:", e)
 
-    #raise NotImplementedError("This function is not implemented yet.")
+    # raise NotImplementedError("This function is not implemented yet.")
+
 
 def drop_table(table_name):
     """
@@ -107,6 +109,7 @@ def drop_table(table_name):
     except Exception as e:
         print("Failed to drop table:", e)
 
+
 def drop_all_table():
     """
     Drop all tables from the database.
@@ -123,7 +126,8 @@ def drop_all_table():
         print("Failed to drop tables:", e)
 
 
-#Test
-#create_tables()
-#print("Tables created successfully.")
-#drop_all_table()
+"""
+create_tables()
+print("Tables created successfully.")
+drop_all_table()
+"""
