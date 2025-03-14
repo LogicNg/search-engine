@@ -5,6 +5,9 @@ from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 
+from database.add_pages import add_pages
+from database.should_fetch_page import should_fetch_page
+
 
 def fetch_webpage(url: str) -> Dict[str, Optional[str]]:
     """
@@ -84,6 +87,9 @@ def recursive_fetch(base_url: str) -> List[Dict[str, Optional[str]]]:
         try:
             print(current_url)
             webpage = fetch_webpage(current_url)
+            if not should_fetch_page(current_url, webpage["last_modified"]):
+                continue
+
             parsed_data = parse_webpage(webpage["html"], current_url)
             result = {
                 "body_text": parsed_data["body_text"],
@@ -103,6 +109,21 @@ def recursive_fetch(base_url: str) -> List[Dict[str, Optional[str]]]:
     return results
 
 
-if __name__ == "__main__":
-    url = "https://www.cse.ust.hk/~kwtleung/COMP4321/testpage.htm"
-    res = recursive_fetch(url)
+def fetch_and_save_pages(base_url: str):
+    """
+    Fetches webpages starting from the specified base URL and saves them to the database.
+
+    Args:
+        base_url (str): The initial URL from which to begin fetching webpages.
+    """
+
+    results = recursive_fetch(base_url)
+    for result in results:
+        add_pages(
+            body_text=result["body_text"],
+            last_modified=result["last_modified"],
+            parent_url=result["parent_url"],
+            title=result["title"],
+            url=result["url"],
+            child_links=result["urls"],
+        )
