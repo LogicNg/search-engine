@@ -69,16 +69,17 @@ def recursive_fetch(base_url: str) -> List[Dict[str, Optional[str]]]:
             - "parent_url" (str or None): The URL of the webpage that initiated the fetch; can be None for the root URL.
             - "title" (str): The title of the fetched webpage.
             - "url" (str): The URL of the fetched webpage.
-
-    This function will continue to fetch and parse webpages until all reachable URLs are visited, ensuring that:
-    - Each URL is fetched only once, preventing infinite loops caused by cyclic links.
-    - Successfully handles and tracks previously visited URLs to avoid redundant fetches.
+            - "child_links" (List[str]): A list of all URLs found in anchor tags on the fetched webpage.
     """
     visited: Set[str] = set()
     queue = deque([(base_url, None)])  # (current_url, parent_url)
     results = []
+    max_pages = 30
+    fetched_count = 0
 
     while queue:
+        if fetched_count >= max_pages:
+            break
         current_url, parent_url = queue.popleft()
         if current_url in visited:
             continue
@@ -97,8 +98,10 @@ def recursive_fetch(base_url: str) -> List[Dict[str, Optional[str]]]:
                 "parent_url": parent_url,
                 "title": parsed_data["title"],
                 "url": current_url,
+                "child_links": parsed_data["urls"],  # Add child links to the result
             }
             results.append(result)
+            fetched_count += 1
 
             for url in parsed_data["urls"]:
                 if url not in visited:
@@ -118,12 +121,4 @@ def fetch_and_save_pages(base_url: str):
     """
 
     results = recursive_fetch(base_url)
-    for result in results:
-        add_pages(
-            body_text=result["body_text"],
-            last_modified=result["last_modified"],
-            parent_url=result["parent_url"],
-            title=result["title"],
-            url=result["url"],
-            child_links=result["urls"],
-        )
+    add_pages(results)
