@@ -1,7 +1,9 @@
+from datetime import datetime
+
 from database.db import connection, cursor
 
 
-def should_fetch_page(url: str, last_modified: str):
+def should_fetch_page(url: str, last_modified: str) -> bool:
     """
     Determine whether a webpage should be fetched based on its URL and last modified date.
 
@@ -21,26 +23,27 @@ def should_fetch_page(url: str, last_modified: str):
     Returns:
         bool: True if the page should be fetched, False otherwise.
     """
-
-    # Get paeg_id from url_mapping table
-    sql = "SELECT page_id FROM url_mapping WHERE url = ?"
-    cursor.execute(sql, (url,))
-    page_id = cursor.fetchone()
-
-    if page_id is None:
-        return True
-
-    sql = "SELECT last_modified_date FROM forward_index WHERE page_id = ?"
-    cursor.execute(sql, (page_id[0],))
+    cursor.execute("SELECT last_modified_date FROM forward_index WHERE url = ?", (url,))
     result = cursor.fetchone()
 
     if result is None:
+        # URL does not exist in the database
         return True
 
-    if result[0] == last_modified:
+    db_last_modified = result[0]
+    db_last_modified_date = datetime.strptime(
+        db_last_modified, "%a, %d %b %Y %H:%M:%S GMT"
+    )
+    input_last_modified_date = datetime.strptime(
+        last_modified, "%a, %d %b %Y %H:%M:%S GMT"
+    )
+
+    if db_last_modified_date == input_last_modified_date:
+        # URL exists and last modified date has not changed
         return False
-    else:
-        return True
+
+    # URL exists but last modified date has changed
+    return True
 
 
 """
