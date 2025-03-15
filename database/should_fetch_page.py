@@ -34,6 +34,9 @@ def should_fetch_page(url: str, last_modified: str):
     cursor.execute(sql, (page_id[0],))
     result = cursor.fetchone()
 
+    if result is None:
+        return True
+
     if result[0] == last_modified:
         return False
     else:
