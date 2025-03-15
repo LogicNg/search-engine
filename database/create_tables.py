@@ -1,91 +1,23 @@
 from database.db import connection, cursor
 
-"""
-Table in total:
-1. page_relationships
-2. url_mapping
-3. word_mapping
-4. forward_index
-5. inverted_index
-6. keyword_statistics
-7. page_rank
-"""
-
-sql_statements = [
-    """
-        CREATE TABLE IF NOT EXISTS url_mapping (
-            page_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            url TEXT UNIQUE NOT NULL
-        );
-    """,
-    """
-        CREATE TABLE IF NOT EXISTS page_relationships (
-            parent_page_id INT NOT NULL,
-            child_page_id INT NOT NULL,
-            PRIMARY KEY (parent_page_id, child_page_id),
-            FOREIGN KEY (parent_page_id) REFERENCES url_mapping (page_id),
-            FOREIGN KEY (child_page_id) REFERENCES url_mapping (page_id)
-        );
-    """,
-    """
-        CREATE TABLE IF NOT EXISTS word_mapping (
-            word_id INT PRIMARY KEY,
-            word TEXT UNIQUE NOT NULL
-        )
-    """,
-    """
-        CREATE TABLE IF NOT EXISTS forward_index (
-            page_id INT PRIMARY KEY,
-            title TEXT NOT NULL,
-            last_modified_date TIMESTAMP NOT NULL,
-            size INT NOT NULL,
-            child_links JSON NOT NULL,
-            FOREIGN KEY (page_id) REFERENCES url_mapping (page_id)
-        );
-    """,
-    """
-        CREATE TABLE IF NOT EXISTS inverted_index (
-            word_id INT NOT NULL,
-            page_id INT NOT NULL,
-            term_frequency INT NOT NULL,
-            PRIMARY KEY (word_id, page_id),
-            FOREIGN KEY (word_id) REFERENCES word_mapping (word_id),
-            FOREIGN KEY (page_id) REFERENCES url_mapping (page_id)
-        );
-    """,
-    """
-        CREATE TABLE IF NOT EXISTS keyword_statistics (
-            word_id INT NOT NULL,
-            page_id INT NOT NULL,
-            tf_idf FLOAT NOT NULL,
-            PRIMARY KEY (word_id, page_id),
-            FOREIGN KEY (word_id) REFERENCES word_mapping (word_id),
-            FOREIGN KEY (page_id) REFERENCES url_mapping (page_id)
-        );
-    """,
-    """
-        CREATE TABLE IF NOT EXISTS page_rank (
-            page_id INT PRIMARY KEY,
-            page_rank FLOAT NOT NULL,
-            FOREIGN KEY (page_id) REFERENCES url_mapping (page_id)
-        );
-    """,
-]
-
 
 def create_tables():
     """
-    Create tables in the database.
+    Create tables in the database by reading SQL statements from creates.sql.
 
-    This function is intended to initialize the database schema by creating
-    the necessary tables. It should be implemented to define the structure
-    of the database, including any relationships between tables.
+    This function reads the SQL statements from the tables.sql file and
+    executes them to create the necessary tables in the database.
     """
     try:
-        for sql in sql_statements:
-            cursor.execute(sql)
+        with open("tables.sql", "r") as file:
+            sql_statements = file.read()
 
+        cursor.executescript(sql_statements)
         connection.commit()
 
     except Exception as e:
         print("Failed to create tables:", e)
+
+
+if __name__ == "__main__":
+    create_tables()
