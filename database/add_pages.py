@@ -1,16 +1,126 @@
-import hashlib
 import json
+from collections import defaultdict
+from datetime import datetime
 
 from database.db import connection, cursor
+from database.indexer import Indexer
+
+indexer = Indexer()
+
+
+def insert_url(url):
+    """Insert a URL into the urls table if it doesn't already exist."""
+    cursor.execute("INSERT OR IGNORE INTO urls (url) VALUES (?)", (url,))
+
+
+def insert_forward_index(url, title, last_modified, size):
+    """Insert or update a page's metadata into the forward_index table."""
+    cursor.execute(
+        """
+        INSERT INTO forward_index (url, title, last_modified_date, size)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(url) DO UPDATE SET
+            title=excluded.title,
+            last_modified_date=excluded.last_modified_date,
+            size=excluded.size
+        """,
+        (url, title, last_modified, size),
+    )
+
+
+def insert_page_relationship(parent_url, child_url):
+    """Insert a parent-child relationship into the page_relationships table if it doesn't already exist."""
+    if parent_url:
+        insert_url(parent_url)
+        cursor.execute(
+            """
+            INSERT OR IGNORE INTO page_relationships (parent_url, child_url)
+            VALUES (?, ?)
+            """,
+            (parent_url, child_url),
+        )
+
+
+def calculate_term_frequency(stems):
+    """Calculate the term frequency for a list of stems."""
+    term_frequency = defaultdict(int)
+    for stem in stems:
+        term_frequency[stem] += 1
+    return term_frequency
+
+
+def insert_words_and_inverted_index(url, term_frequency):
+    """Insert words and their term frequencies into the words and inverted_index tables."""
+    for stem, tf in term_frequency.items():
+        # Insert into words table
+        cursor.execute("INSERT OR IGNORE INTO words (word) VALUES (?)", (stem,))
+
+        # Insert into inverted_index table
+        cursor.execute(
+            """
+            INSERT INTO inverted_index (word, url, term_frequency)
+            VALUES (?, ?, ?)
+            ON CONFLICT(word, url) DO UPDATE SET
+                term_frequency=excluded.term_frequency
+            """,
+            (stem, url, tf),
+        )
+
+
+def insert_keyword_statistics(url, term_frequency):
+    """Insert TF-IDF values into the keyword_statistics table."""
+    for stem, tf in term_frequency.items():
+        tf_idf = tf  # Assuming IDF is 1 for simplicity
+        cursor.execute(
+            """
+            INSERT INTO keyword_statistics (word, url, tf_idf)
+            VALUES (?, ?, ?)
+            ON CONFLICT(word, url) DO UPDATE SET
+                tf_idf=excluded.tf_idf
+            """,
+            (stem, url, tf_idf),
+        )
+
+
+def process_page(page):
+    """Process a single page and insert its data into the database."""
+    url = page["url"]
+    title = page["title"]
+    last_modified = datetime.strptime(page["last_modified"], "%a, %d %b %Y %H:%M:%S %Z")
+    parent_url = page["parent_url"]
+    body_text = page["body_text"]
+    size = len(body_text)
+
+    # Insert URL and forward index
+    insert_url(url)
+    insert_forward_index(url, title, last_modified, size)
+
+    # Insert page relationship if parent_url exists
+    insert_page_relationship(parent_url, url)
+
+    # Index the page content
+    indexer.index_page(url, title, body_text)
+
+    # Get the indexed data
+    title_stems = indexer.stem(indexer.tokenize(title))
+    body_stems = indexer.stem(indexer.tokenize(body_text))
+
+    # Combine title and body stems
+    all_stems = title_stems + body_stems
+
+    # Calculate term frequency
+    term_frequency = calculate_term_frequency(all_stems)
+
+    # Insert words and inverted index
+    insert_words_and_inverted_index(url, term_frequency)
+
+    # Insert keyword statistics
+    insert_keyword_statistics(url, term_frequency)
 
 
 def add_pages(pages: list[dict]):
     """
     Add multiple webpages to the database.
-
-    This function is responsible for inserting new pages into the database. It does not
-    return any value. The function will use the provided parameters to populate the
-    database schema accordingly.
 
     Args:
         pages (list[dict]): A list of dictionaries, each containing the following keys:
@@ -21,81 +131,11 @@ def add_pages(pages: list[dict]):
                                        This can be None if there is no parent.
             - title (str): The title of the page to be added.
             - url (str): The URL of the page to be added.
-            - child_links (list[str]): A list of URLs of the child pages.
 
     Returns:
         None: This function does not return any value.
-
-    Notes:
-        Check the database schema to know what fields to insert.
     """
-
-    url_mapping_data = []
-    forward_index_data = []
-    page_relationships_data = []
-
     for page in pages:
-        body_text = page["body_text"]
-        last_modified = page["last_modified"]
-        parent_url = page.get("parent_url")
-        title = page["title"]
-        child_links = page["child_links"]
-        url = page["url"]
+        process_page(page)
 
-        url_mapping_data.append((url,))
-        forward_index_data.append(
-            (title, last_modified, len(body_text), json.dumps(child_links))
-        )
-
-        if parent_url is not None:
-            sql = "SELECT page_id FROM url_mapping WHERE url = ?"
-            cursor.execute(sql, (parent_url,))
-            parent_page_id = cursor.fetchone()
-            if parent_page_id is not None:
-                parent_page_id = parent_page_id[0]
-                page_relationships_data.append(
-                    (parent_page_id, None)
-                )  # Placeholder for child_page_id
-        else:
-            page_relationships_data.append((0, None))  # Placeholder for child_page_id
-
-    try:
-        # Batch insert into url_mapping table
-        cursor.executemany("INSERT INTO url_mapping (url) VALUES (?)", url_mapping_data)
-        connection.commit()
-
-        # Retrieve the page_ids for the inserted URLs
-        cursor.execute(
-            "SELECT page_id, url FROM url_mapping WHERE url IN ({})".format(
-                ",".join("?" for _ in url_mapping_data)
-            ),
-            [url for (url,) in url_mapping_data],
-        )
-        url_to_page_id = {url: page_id for page_id, url in cursor.fetchall()}
-
-        # Update forward_index_data and page_relationships_data with the correct page_ids
-        for i, (title, last_modified, size, child_links) in enumerate(
-            forward_index_data
-        ):
-            page_id = url_to_page_id[url_mapping_data[i][0]]
-            forward_index_data[i] = (page_id, title, last_modified, size, child_links)
-            page_relationships_data[i] = (page_relationships_data[i][0], page_id)
-
-        # Batch insert into forward_index table
-        cursor.executemany(
-            "INSERT INTO forward_index (page_id, title, last_modified_date, size, child_links) VALUES (?, ?, ?, ?, ?)",
-            forward_index_data,
-        )
-        connection.commit()
-
-        # Batch insert into page_relationships table
-        cursor.executemany(
-            "INSERT INTO page_relationships (parent_page_id, child_page_id) VALUES (?, ?)",
-            page_relationships_data,
-        )
-        connection.commit()
-
-    except Exception as e:
-        print(e)
-        connection.rollback()
-        raise e
+    connection.commit()
