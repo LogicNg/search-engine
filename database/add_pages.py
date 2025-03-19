@@ -1,4 +1,5 @@
 import json
+import math
 from collections import defaultdict
 from datetime import datetime
 
@@ -67,10 +68,27 @@ def insert_words_and_inverted_index(url, term_frequency):
         )
 
 
+def get_total_documents():
+    """Get the total number of documents in the database."""
+    cursor.execute("SELECT COUNT(*) FROM urls")
+    return cursor.fetchone()[0]
+
+
+def get_document_frequency(stem):
+    """Get the number of documents in which the term appears."""
+    cursor.execute(
+        "SELECT COUNT(DISTINCT url) FROM inverted_index WHERE word = ?", (stem,)
+    )
+    return cursor.fetchone()[0]
+
+
 def insert_keyword_statistics(url, term_frequency):
     """Insert TF-IDF values into the keyword_statistics table."""
+    total_documents = get_total_documents()
     for stem, tf in term_frequency.items():
-        tf_idf = tf  # Assuming IDF is 1 for simplicity
+        document_frequency = get_document_frequency(stem)
+        idf = math.log(total_documents / document_frequency)
+        tf_idf = tf * idf
         cursor.execute(
             """
             INSERT INTO keyword_statistics (word, url, tf_idf)
