@@ -2,6 +2,12 @@
 
 ## Installation
 
+Create a virtual environment:
+
+```sh
+python -m venv venv
+```
+
 Install the required dependencies from `requirements.txt`:
 
 ```sh
