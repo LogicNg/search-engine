@@ -107,7 +107,8 @@ def process_page(page):
     last_modified = datetime.strptime(page["last_modified"], "%a, %d %b %Y %H:%M:%S %Z")
     parent_url = page["parent_url"]
     body_text = page["body_text"]
-    size = len(body_text)
+    #size = len(body_text)
+    size = page["size"]
 
     # Insert URL and forward index
     insert_url(url)

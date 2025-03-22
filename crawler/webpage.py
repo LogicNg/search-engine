@@ -24,9 +24,19 @@ def fetch_webpage(url: str) -> Dict[str, Optional[str]]:
     response = requests.get(url)
     html_content = response.text
     last_modified = response.headers.get("Last-Modified")
+
+    if last_modified is None:
+        last_modified = response.headers.get("Date")
+    
+    content_length = response.headers.get("Content-Length")
+
+    if content_length is None:
+        content_length = len(html_content)
+
     return {
         "html": html_content,
         "last_modified": last_modified,
+        "size": content_length
     }
 
 
@@ -95,6 +105,7 @@ def recursive_fetch(base_url: str) -> List[Dict[str, Optional[str]]]:
             result = {
                 "body_text": parsed_data["body_text"],
                 "last_modified": webpage["last_modified"],
+                "size": webpage["size"],
                 "parent_url": parent_url,
                 "title": parsed_data["title"],
                 "url": current_url,
