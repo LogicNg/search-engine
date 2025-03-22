@@ -2,6 +2,8 @@
 
 ## Installation
 
+Require Python >= 3.10
+
 Create a virtual environment:
 
 ```sh
@@ -10,14 +12,8 @@ python -m venv venv
 
 Activate the vm:
 
-- Windows
-    ```sh
-    venv\Scripts\activate
-    ```
-- Mac/Linus 
-    ```sh
-    source venv/bin/activate
-    ```
+- Windows: `venv\Scripts\activate`
+- Mac/Linus: `source venv/bin/activate`
 
 Install the required dependencies from `requirements.txt`:
 
@@ -42,10 +38,10 @@ The script does the following things:
 ## Clean up
 
 Deactivate the vm:
+
 ```sh
 deactivate
 ```
-
 
 ## DB design
 
