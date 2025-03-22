@@ -8,6 +8,17 @@ Create a virtual environment:
 python -m venv venv
 ```
 
+Activate the vm:
+
+- Windows
+    ```sh
+    venv\Scripts\activate
+    ```
+- Mac/Linus 
+    ```sh
+    source venv/bin/activate
+    ```
+
 Install the required dependencies from `requirements.txt`:
 
 ```sh
@@ -24,9 +35,17 @@ python main.py
 
 The script does the following things:
 
-1. Creates the necessary database tables.
+1. Creates the necessary database tables in `documents.db`.
 2. Fetches and saves web pages starting from a specified base URL.
 3. Generates a `spider_result.txt` file containing the fetched and indexed data.
+
+## Clean up
+
+Deactivate the vm:
+```sh
+deactivate
+```
+
 
 ## DB design
 
