@@ -56,13 +56,15 @@ def parse_webpage(html: str, base_url: str) -> Dict[str, Optional[object]]:
     """
     soup = BeautifulSoup(html, "html.parser")
     title = soup.title.string if soup.title else None
+    if soup.title:
+        soup.title.decompose()  # Remove the title element from the soup
     body_text = " ".join(soup.stripped_strings)
     urls = [urljoin(base_url, a["href"]) for a in soup.find_all("a", href=True)]
-    Dict = {}
-    Dict["title"] = title
-    Dict["body_text"] = body_text
-    Dict["urls"] = urls
-    return Dict
+    return {
+        "title": title,
+        "body_text": body_text,
+        "urls": urls,
+    }
 
 
 def recursive_fetch(base_url: str) -> List[Dict[str, Optional[str]]]:
