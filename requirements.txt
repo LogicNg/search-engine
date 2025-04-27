@@ -1,3 +1,5 @@
 requests
 beautifulsoup4
 nltk
+Flask
+flash-core

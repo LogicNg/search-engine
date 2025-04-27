@@ -59,3 +59,10 @@ Take a look at tables.sql for the database schema. Here is a brief overview of t
 | forward_index      | Stores metadata about each URL, such as the title, last modified date, and size            |
 | inverted_index     | Maps words to URLs, along with the term frequency of each word in the URL                  |
 | keyword_statistics | Stores the TF-IDF (Term Frequency-Inverse Document Frequency) score for each word-URL pair |
+
+
+
+Updates from marco
+
+nvm use 22
+npm create vite@latest
