@@ -11,6 +11,14 @@ export default defineConfig({
         target: 'http://127.0.0.1:5000',
         changeOrigin: true,
       },
+      '/suggestions': {
+        target: 'http://127.0.0.1:5000',
+        changeOrigin: true,
+      },
+      '/history': {
+        target: 'http://127.0.0.1:5000',
+        changeOrigin: true,
+      },
     },
   },
 })

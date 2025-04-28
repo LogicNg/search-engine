@@ -15,7 +15,7 @@ keywords: dinosaur 28; titl 15; search 15; planet 12; movi 9; tv 7; match 7; res
 '''
 
 # Sample data
-page = [
+pages = [
     {
         "score": 0.99999,
         "title": "Home Move (2001) sfasdfasdfsadfasdfasdfas",
@@ -42,7 +42,7 @@ page = [
     },
     {
         "score": 0.87654,
-        "title": "Research Paper on AI (2023)",
+        "title": "Home Research Paper on AI (2023)",
         "link": "https://ai-research.org/papers/2023",
         "last_modification_date": "2023-11-15T14:30:00Z",
         "file_size": "2.4MB",
@@ -89,7 +89,7 @@ page = [
     },
     {
         "score": 0.98765,
-        "title": "Annual Financial Report 2022",
+        "title": "Home Annual Financial Report 2022",
         "link": "https://company.com/financials/2022",
         "last_modification_date": "2023-03-01T09:00:00Z",
         "file_size": "5.7MB",
@@ -118,11 +118,43 @@ page = [
 
 ]
 
+suggestion_list = ["Movie", "Move", "Movement", "Movvvy", "Move", "Movement", "Movvvy"]
+
+history_list = [
+    {
+        "query": "Dinosaur Planet",
+        "timestamp": "2023-05-16T05:03:16Z"
+    },
+    {
+        "query": "Research",
+        "timestamp": "2023-11-15T14:30:00Z"
+    },
+    {
+        "query": "Cooking Recipes",
+        "timestamp": "2022-09-22T08:15:00Z"
+    }
+]
+
 @app.route('/search')
 def search():
-    print("Sending data:", page)  # Debug log
-    
-    return jsonify(page)
+    query = request.args.get('query', '').lower()
+    if not query:
+        return jsonify({"error": "Query parameter is required"}), 400
+
+    print(f"Received search query: {query}")
+    filtered_pages = []
+    for page in pages:
+        if query in page['title'].lower() or query in page['link'].lower():
+            filtered_pages.append(page)
+    return jsonify(filtered_pages)
+
+@app.route('/suggestions')
+def suggestions():  
+    return jsonify(suggestion_list)
+
+@app.route('/history')
+def history():  
+    return jsonify(history_list)
 
 
 if __name__ == '__main__':

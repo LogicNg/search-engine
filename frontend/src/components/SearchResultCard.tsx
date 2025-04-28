@@ -9,6 +9,7 @@ interface ContentCardProps {
     keywords: { [keyword: string]: string };
     children_links: string[];
     parent_links: string[];
+    isDarkMode: boolean;
 }
 
 const SearchResultCard: React.FC<ContentCardProps> = ({
@@ -20,6 +21,7 @@ const SearchResultCard: React.FC<ContentCardProps> = ({
     keywords,
     children_links,
     parent_links,
+    isDarkMode,
 }) => {
 
     //a list of color, indicating high, medium, low score. 
@@ -29,7 +31,7 @@ const SearchResultCard: React.FC<ContentCardProps> = ({
     const [showParentLinks, setShowParentLinks] = React.useState(false);
 
     return (    
-        <div className="bg-[#2D2E2E] text-white p-4 rounded-2xl shadow-md max-w-3xl border border-[#343636]">
+        <div className={`border ${isDarkMode ? "bg-[#2D2E2E] hover:bg-[#373737] text-white border-[#343636]" : "bg-[#ffffff] hover:bg-[#ffffff] text-[#494949] border-[#C3C3C1]"} p-4 rounded-2xl shadow-md max-w-3xl`}>
             {/* Score and Title */}
             <div className="flex items-center mb-2">
                 <div className={`${scoreColor} ${score > 0.5 ? "text-black" : "text-white"} px-2 py-1 rounded-md text-sm mr-4`}>
@@ -58,9 +60,9 @@ const SearchResultCard: React.FC<ContentCardProps> = ({
                 {Object.entries(keywords).map(([keyword, score], index) => (
                     <div
                         key={index}
-                        className="bg-white px-3 py-1 rounded-xl text-sm transition-transform transform hover:scale-105 active:scale-95"
+                        className={`${isDarkMode ? "bg-white" : "bg-[#dcdbdb]"} px-3 py-1 rounded-xl text-sm transition-transform transform hover:scale-105 active:scale-95`}
                     >
-                        <span className="mr-2 text-[#21B8CD]">
+                        <span className={`mr-2 ${isDarkMode ? "text-[#21B8CD]" : "text-[#21B8CD]"}`}>
                             {keyword}
                         </span>
                         <span className="text-black">
@@ -77,7 +79,7 @@ const SearchResultCard: React.FC<ContentCardProps> = ({
                         <h3 className="text-sm font-semibold mb-2 mr-6">Children Links</h3>
                         <button
                             onClick={() => setShowChildrenLinks(!showChildrenLinks)}
-                            className="text-gray-400 hover:text-white transition-colors"
+                            className={`text-gray-400 ${isDarkMode ? "hover:text-white" : "hover:text-black"} transition-colors`}
                         >
                             {showChildrenLinks ? "▲" : "▼"}
                         </button>
@@ -107,7 +109,7 @@ const SearchResultCard: React.FC<ContentCardProps> = ({
                         <h3 className="text-sm font-semibold mb-2 mr-6">Parent Links</h3>
                         <button
                             onClick={() => setShowParentLinks(!showParentLinks)}
-                            className="text-gray-400 hover:text-white transition-colors"
+                            className={`text-gray-400 ${isDarkMode ? "hover:text-white" : "hover:text-black"} transition-colors`}
                         >
                             {showParentLinks ? "▲" : "▼"}
                         </button>
