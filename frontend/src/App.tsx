@@ -1,24 +1,50 @@
 // App.tsx
 import React, { useState, useEffect } from "react";
-import { MenuIcon, DotsVerticalIcon, SearchIcon, MicrophoneIcon } from "@heroicons/react/outline";
+import SearchResultCard from "./components/SearchResultCard";
 
+interface ContentCardData {
+  score: number;
+  title: string;
+  link: string;
+  last_modification_date: string;
+  file_size: string;
+  keywords: { [keyword: string]: string };
+  children_links: string[];
+  parent_links: string[];
+}
 
 const App: React.FC = () => {
-  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [history, setHistory] = useState<string[]>([]);
+  const [searchResult, setSearchResult] = useState<ContentCardData[]>([]);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
 
+  //Get search history
   useEffect(() => {
     const dummyHistory = ["Movie", "Move", "Movement", "Movvvy", "Move", "Movement", "Movvvy"];
     setHistory(dummyHistory);
   }, []);
+
+  // Get search results
+  useEffect(() => {
+    fetch("/search")
+      .then((res) => res.json())
+      .then((data) => { 
+        data.sort((a: ContentCardData, b: ContentCardData) => b.score - a.score);
+        setSearchResult(data);
+        console.log(data); 
+      })
+      .catch((err) => console.error("Error fetching data:", err));
+  }, [query]); 
+
+  
   
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
-    setSearch(value);
+    setQuery(value);
 
     // Dummy suggestions for demonstration
     if (value) {
@@ -73,9 +99,9 @@ const App: React.FC = () => {
       </div>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col items-center justify-start px-4 mt-[30vh]">
-        <h1 className="text-2xl md:text-4xl mb-10">Not Deep Search</h1>
-
+      <div className={`flex-1 flex flex-col items-center justify-start px-4 ${searchResult.length > 0 ? "mt-[5vh]" : "mt-[30vh]"}`}>
+        
+        {!searchResult.length && (<h1 className="text-2xl md:text-4xl mb-10">Not Deep Search</h1>)}
         {/* Search Bar */}
         <div className="relative">
           <div className={`flex items-center ${isDarkMode ? "bg-[#222222] text-white" : "bg-[#F1F1F1] text-[#1E3D43]"} px-4 py-2 h-[60px] w-[700px] rounded-tl-2xl rounded-tr-2xl ${suggestions.length > 0 ? "" : "rounded-bl-2xl rounded-br-2xl"} border ${isDarkMode ? "border-[#343636]" : "border-[#C3C3C1]"} shadow hover: cursor-pointer`}>
@@ -87,7 +113,7 @@ const App: React.FC = () => {
               className="flex-1 bg-transparent outline-none px-2"
               type="text"
               placeholder="Search..."
-              value={search}
+              value={query}
               onChange={handleSearchChange}
             />
 
@@ -111,6 +137,14 @@ const App: React.FC = () => {
 
           </div>
 
+          <div className="relative w-full h-[85vh] overflow-y-auto">
+          {searchResult.map((item, index) => (
+            <div className="py-2 mt-3" key={index}>
+              <SearchResultCard {...item} />
+            </div>
+          ))}
+        </div>
+
           {/* Suggestions */}
           {suggestions.length > 0 && (
             <ul className={`absolute top-full w-full ${isDarkMode ? "bg-[#222222] text-white" : "bg-[#F1F1F1] text-[#1E3D43]"} rounded-bl-2xl rounded-br-2xl shadow overflow-y-auto max-h-60`}>
@@ -118,7 +152,7 @@ const App: React.FC = () => {
                 <li
                   key={index}
                   className={`px-4 py-2 hover:bg-gray-600 cursor-pointer border ${isDarkMode ? "border-[#343636]" : "border-[#C3C3C1]"}`}
-                  onClick={() => setSearch(suggestion)}
+                  onClick={() => setQuery(suggestion)}
                 >
                   {suggestion}
                 </li>
