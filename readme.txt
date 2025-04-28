@@ -23,6 +23,22 @@ Install the required dependencies from `requirements.txt`:
 pip install -r requirements.txt
 ```
 
+# Phase 2
+Open 2 terminals
+
+# Start backend server on one
+`cd backend`
+`python3 server.py`
+
+# Start frontend on the other
+`cd frontend`
+`npm i`
+`npm run dev`
+
+# View the app
+Open your browser and navigate to `http://localhost:5173/` to view the app.
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
 ## Main Script
 
 Run the main script:
