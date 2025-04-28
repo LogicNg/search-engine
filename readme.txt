@@ -2,6 +2,9 @@
 
 ## Installation
 
+
+Require Python >= 3.10
+
 Create a virtual environment:
 
 ```sh
@@ -10,14 +13,9 @@ python -m venv venv
 
 Activate the vm:
 
-- Windows
-    ```sh
-    venv\Scripts\activate
-    ```
-- Mac/Linus 
-    ```sh
-    source venv/bin/activate
-    ```
+
+- Windows: `venv\Scripts\activate`
+- Mac/Linus: `source venv/bin/activate`
 
 Install the required dependencies from `requirements.txt`:
 
@@ -42,6 +40,8 @@ The script does the following things:
 ## Clean up
 
 Deactivate the vm:
+
+
 ```sh
 deactivate
 ```
@@ -60,9 +60,3 @@ Take a look at tables.sql for the database schema. Here is a brief overview of t
 | inverted_index     | Maps words to URLs, along with the term frequency of each word in the URL                  |
 | keyword_statistics | Stores the TF-IDF (Term Frequency-Inverse Document Frequency) score for each word-URL pair |
 
-
-
-Updates from marco
-
-nvm use 22
-npm create vite@latest

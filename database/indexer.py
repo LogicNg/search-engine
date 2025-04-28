@@ -1,7 +1,7 @@
 import re
 from collections import defaultdict
 
-#from nltk.corpus import stopwords
+# from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 
 
@@ -10,10 +10,10 @@ class Indexer:
         """Initialize the Indexer with stopwords and a stemmer."""
 
         self.stop_words = None
-        with open('database/stopwords.txt', 'r') as file:
-            self.stop_words = file.read().split()
+        with open("database/stopwords.txt", "r") as file:
+            self.stop_words = set(file.read().split())
 
-        #self.stop_words = set(stopwords.words("english"))
+        # self.stop_words = set(stopwords.words("english"))
         self.stemmer = PorterStemmer()
         self.body_index = defaultdict(list)
         self.title_index = defaultdict(list)
