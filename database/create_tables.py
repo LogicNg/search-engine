@@ -1,21 +1,23 @@
-# CREATE TABLE page_relationships (
-#     parent_page_id INT NOT NULL,
-#     child_page_id INT NOT NULL,
-#     PRIMARY KEY (parent_page_id, child_page_id)
-# );
-
-# CREATE TABLE url_mapping (
-#     page_id INT PRIMARY KEY,
-#     url TEXT UNIQUE NOT NULL
-# );
+from database.db import connection, cursor
 
 
 def create_tables():
     """
-    Create tables in the database.
+    Create tables in the database by reading SQL statements from creates.sql.
 
-    This function is intended to initialize the database schema by creating
-    the necessary tables. It should be implemented to define the structure
-    of the database, including any relationships between tables.
+    This function reads the SQL statements from the tables.sql file and
+    executes them to create the necessary tables in the database.
     """
-    raise NotImplementedError("This function is not implemented yet.")
+    try:
+        with open("tables.sql", "r") as file:
+            sql_statements = file.read()
+
+        cursor.executescript(sql_statements)
+        connection.commit()
+
+    except Exception as e:
+        print("Failed to create tables:", e)
+
+
+if __name__ == "__main__":
+    create_tables()
