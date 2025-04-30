@@ -1,8 +1,6 @@
-from flask import Flask, jsonify, request
-from flask_cors import CORS
+from flask import Blueprint, jsonify, request
 
-app = Flask(__name__)
-CORS(app)
+search_bp = Blueprint("search", __name__)
 
 # sample data
 """
@@ -108,16 +106,8 @@ pages = [
     },
 ]
 
-suggestion_list = ["Movie", "Move", "Movement", "Movvvy", "Move", "Movement", "Movvvy"]
 
-history_list = [
-    {"query": "Dinosaur Planet", "timestamp": "2023-05-16T05:03:16Z"},
-    {"query": "Research", "timestamp": "2023-11-15T14:30:00Z"},
-    {"query": "Cooking Recipes", "timestamp": "2022-09-22T08:15:00Z"},
-]
-
-
-@app.route("/search")
+@search_bp.route("/search")
 def search():
     query = request.args.get("query", "").lower()
     if not query:
@@ -129,17 +119,3 @@ def search():
         if query in page["title"].lower() or query in page["link"].lower():
             filtered_pages.append(page)
     return jsonify(filtered_pages)
-
-
-@app.route("/suggestions")
-def suggestions():
-    return jsonify(suggestion_list)
-
-
-@app.route("/history")
-def history():
-    return jsonify(history_list)
-
-
-if __name__ == "__main__":
-    app.run(debug=True)
