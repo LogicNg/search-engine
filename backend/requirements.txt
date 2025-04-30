@@ -1,5 +1,7 @@
 requests
 beautifulsoup4
 nltk
-flask
-flash-core
+Flask
+flask-cors
+networkx
+matplotlib
