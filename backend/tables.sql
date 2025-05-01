@@ -39,3 +39,9 @@ CREATE TABLE IF NOT EXISTS keyword_statistics (
   FOREIGN KEY (word) REFERENCES words (word),
   FOREIGN KEY (url) REFERENCES urls (url)
 );
+
+CREATE TABLE IF NOT EXISTS page_rank (
+  url TEXT PRIMARY KEY,
+  rank FLOAT NOT NULL,
+  FOREIGN KEY (url) REFERENCES urls (url)
+);

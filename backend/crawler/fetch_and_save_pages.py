@@ -27,7 +27,7 @@ def fetch_webpage(url: str) -> Dict[str, Optional[str]]:
 
     if last_modified is None:
         last_modified = response.headers.get("Date")
-    
+
     content_length = response.headers.get("Content-Length")
 
     if content_length is None:
@@ -36,7 +36,7 @@ def fetch_webpage(url: str) -> Dict[str, Optional[str]]:
     return {
         "html": html_content,
         "last_modified": last_modified,
-        "size": content_length
+        "size": content_length,
     }
 
 
