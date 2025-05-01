@@ -1,6 +1,17 @@
 from flask import Blueprint, jsonify, request
+import numpy as np
+from sentence_transformers import SentenceTransformer  # <-- NEW IMPORT
 
 search_bp = Blueprint("search", __name__)
+
+# NEW: Initialize sentence transformer model for embeddings
+model = SentenceTransformer('all-MiniLM-L6-v2')  # <-- NEW MODEL INIT
+
+# NEW: Precompute embeddings for all pages
+page_embeddings = {  # <-- NEW EMBEDDINGS DICT
+    i: model.encode(page["title"] + " " + " ".join(page["keywords"].keys()))
+    for i, page in enumerate(pages)
+}
 
 # sample data
 """
@@ -114,8 +125,37 @@ def search():
         return jsonify({"error": "Query parameter is required"}), 400
 
     print(f"Received search query: {query}")
+
+    # NEW: Calculate cosine similarity between query and pages
+    query_embedding = model.encode(query)  # <-- NEW EMBEDDING GENERATION
+    
+    # ORIGINAL CODE: Substring matching (preserved exactly as was)
     filtered_pages = []
     for page in pages:
         if query in page["title"].lower() or query in page["link"].lower():
             filtered_pages.append(page)
-    return jsonify(filtered_pages)
+    
+    # NEW CODE: Cosine similarity implementation (added alongside original)
+    query_embedding = model.encode(query)
+    semantic_results = []
+    for i, page in enumerate(pages):
+        emb = page_embeddings[i]
+        similarity = np.dot(query_embedding, emb) / (
+            np.linalg.norm(query_embedding) * np.linalg.norm(emb))
+        
+        semantic_results.append({
+            "page": page,
+            "similarity_score": float(similarity)
+        })
+    
+    semantic_results.sort(key=lambda x: x["similarity_score"], reverse=True)
+    filtered_semantic = [
+        result for result in semantic_results if result["similarity_score"] > 0.2
+    ]
+    
+    # COMBINED RESPONSE: Returns both results with type indicator
+    return jsonify({
+        "substring_matches": filtered_pages,  # Original results
+        "semantic_matches": [r["page"] for r in filtered_semantic],  # New results
+        "detailed_semantic": filtered_semantic  # New results with scores
+    })
