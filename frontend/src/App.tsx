@@ -4,6 +4,9 @@ import SearchResultCard from "./components/SearchResultCard";
 import SpeechRecognition, {
   useSpeechRecognition,
 } from "react-speech-recognition";
+import DropdownMenu from "./components/DropdownMenu";
+import { Select, Option } from "@material-tailwind/react";
+
 
 interface ContentCardData {
   score: number;
@@ -230,54 +233,30 @@ const App: React.FC = () => {
           <h1 className="text-2xl md:text-4xl mb-10">Not Deep Search</h1>
         )}
         {/* Search Bar */}
-        <div className="relative">
-          <div
-            className={`flex items-center ${
-              isDarkMode
-                ? "bg-[#222222] text-white"
-                : "bg-[#F1F1F1] text-[#1E3D43]"
-            } px-4 py-2 h-[60px] w-[700px] rounded-tl-2xl rounded-tr-2xl ${
-              suggestions.length > 0 && !isSuggestionClicked
-                ? ""
-                : "rounded-bl-2xl rounded-br-2xl"
-            } border ${
-              isDarkMode ? "border-[#343636]" : "border-[#C3C3C1]"
-            } shadow hover: cursor-pointer`}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="#21B8CD"
-              className="size-6 mr-5"
-              onClick={() => {
-                setIsSuggestionClicked(true);
-                if (query) {
-                  handleSearch();
-                  setSearched(true);
-                } else {
-                  setSearchResult([]);
-                  setSearched(false);
-                }
-              }}
+        <div className="relative flex-1">
+          <div className="flex items-center justify-center gap-1">
+            <div
+              className={`flex items-center ${
+                isDarkMode
+                  ? "bg-[#222222] text-white"
+                  : "bg-[#F1F1F1] text-[#1E3D43]"
+              } px-4 py-2 h-[60px] w-[700px] rounded-tl-2xl rounded-tr-2xl ${
+                suggestions.length > 0 && !isSuggestionClicked
+                  ? ""
+                  : "rounded-bl-2xl rounded-br-2xl"
+              } border ${
+                isDarkMode ? "border-[#343636]" : "border-[#C3C3C1]"
+              } shadow hover: cursor-pointer`}
             >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
-              />
-            </svg>
-
-            <input
-              className="flex-1 bg-transparent outline-none px-2"
-              type="text"
-              placeholder="Search..."
-              value={query}
-              onChange={handleSearchChange}
-              onKeyDown={(event) => {
-                setIsSuggestionClicked(true);
-                if (event.key === "Enter") {
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="#21B8CD"
+                className="size-6 mr-5"
+                onClick={() => {
+                  setIsSuggestionClicked(true);
                   if (query) {
                     handleSearch();
                     setSearched(true);
@@ -285,49 +264,80 @@ const App: React.FC = () => {
                     setSearchResult([]);
                     setSearched(false);
                   }
-                }
-              }}
-            />
-            {/* Mic Button */}
-            <div className="bg-[#21B8CD] rounded-lg p-2 hover: cursor-pointer">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-                stroke={
-                  isDarkMode
-                    ? listening
-                      ? "white"
-                      : "black"
-                    : listening
-                    ? "black"
-                    : "white"
-                }
-                className="size-6"
-                onClick={() => {
-                  if (listening) {
-                    console.log("Stopping listening");
-                    SpeechRecognition.stopListening();
-                  } else {
-                    resetTranscript();
-                    console.log("Starting listening");
-                    setQuery("");
-                    SpeechRecognition.startListening({
-                      continuous: true,
-                      language: "en-US",
-                    });
-                  }
                 }}
               >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
-                  d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"
+                  d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
                 />
               </svg>
+
+              <input
+                className="flex-1 bg-transparent outline-none px-2"
+                type="text"
+                placeholder="Search..."
+                value={query}
+                onChange={handleSearchChange}
+                onKeyDown={(event) => {
+                  setIsSuggestionClicked(true);
+                  if (event.key === "Enter") {
+                    if (query) {
+                      handleSearch();
+                      setSearched(true);
+                    } else {
+                      setSearchResult([]);
+                      setSearched(false);
+                    }
+                  }
+                }}
+              />
+              {/* Mic Button */}
+              <div className="bg-[#21B8CD] rounded-lg p-2 hover: cursor-pointer">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke={
+                    isDarkMode
+                      ? listening
+                        ? "white"
+                        : "black"
+                      : listening
+                      ? "black"
+                      : "white"
+                  }
+                  className="size-6"
+                  onClick={() => {
+                    if (listening) {
+                      console.log("Stopping listening");
+                      SpeechRecognition.stopListening();
+                    } else {
+                      resetTranscript();
+                      console.log("Starting listening");
+                      setQuery("");
+                      SpeechRecognition.startListening({
+                        continuous: true,
+                        language: "en-US",
+                      });
+                    }
+                  }}
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"
+                  />
+                </svg>
+              </div>
             </div>
+            
           </div>
+          
+          <p className="ml-5 text-md"> Sort by </p>
+          <div className="w-72">
+        </div>
 
           {/* Suggestions */}
           {suggestions.length > 0 && !isSuggestionClicked && (
