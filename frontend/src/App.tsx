@@ -334,10 +334,8 @@ const App: React.FC = () => {
             </div>
             
           </div>
+           
           
-          <p className="ml-5 text-md"> Sort by </p>
-          <div className="w-72">
-        </div>
 
           {/* Suggestions */}
           {suggestions.length > 0 && !isSuggestionClicked && (
