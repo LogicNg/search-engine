@@ -25,5 +25,9 @@ export const useQueryHistory = () => {
     setQueryHistory([]);
   };
 
-  return { queryHistory, addQueryHistory, clearQueryHistory };
+  const deleteQueryHistory = (query: string) => {
+    setQueryHistory(prev => prev.filter(q => q !== query));
+  }
+
+  return { queryHistory, addQueryHistory, deleteQueryHistory, clearQueryHistory };
 };
