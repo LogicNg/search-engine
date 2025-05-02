@@ -27,6 +27,18 @@ def insert_forward_index(url, title, last_modified, size):
         """,
         (url, title, last_modified, size),
     )
+    
+def insert_title_foward_index(url, title):
+    """Insert or update a page's title into the forward_index table."""
+    cursor.execute(
+        """
+        INSERT INTO title_forward_index (url, title)
+        VALUES (?, ?)
+        ON CONFLICT(url) DO UPDATE SET
+            title=excluded.title
+        """,
+        (url, title),
+    )
 
 
 def insert_page_relationship(parent_url, child_url):
@@ -67,6 +79,23 @@ def insert_words_and_inverted_index(url, term_frequency):
             (stem, url, tf),
         )
 
+def insert_titles_and_titl_inverted_index(url, term_frequency):
+    """Insert words and their term frequencies into the words and inverted_index tables."""
+    for stem, tf in term_frequency.items():
+        # Insert into words table
+        cursor.execute("INSERT OR IGNORE INTO titles (title) VALUES (?)", (stem,))
+
+        # Insert into inverted_index table
+        cursor.execute(
+            """
+            INSERT INTO title_inverted_index (title, url, term_frequency)
+            VALUES (?, ?, ?)
+            ON CONFLICT(title, url) DO UPDATE SET
+                term_frequency=excluded.term_frequency
+            """,
+            (stem, url, tf),
+        )
+    
 
 def get_total_documents():
     """Get the total number of documents in the database."""
@@ -81,8 +110,15 @@ def get_document_frequency(stem):
     )
     return cursor.fetchone()[0]
 
+def get_title_frequency(stem):
+    """Get the number of documents in which the term appears."""
+    cursor.execute(
+        "SELECT COUNT(DISTINCT url) FROM title_inverted_index WHERE title = ?", (stem,)
+    )
+    return cursor.fetchone()[0]
 
-def insert_keyword_statistics(url, term_frequency):
+
+def insert_word_statistics(url, term_frequency):
     """Insert TF-IDF values into the keyword_statistics table."""
     total_documents = get_total_documents()
     for stem, tf in term_frequency.items():
@@ -91,7 +127,7 @@ def insert_keyword_statistics(url, term_frequency):
         tf_idf = tf * idf
         cursor.execute(
             """
-            INSERT INTO keyword_statistics (word, url, tf_idf)
+            INSERT INTO word_statistics (word, url, tf_idf)
             VALUES (?, ?, ?)
             ON CONFLICT(word, url) DO UPDATE SET
                 tf_idf=excluded.tf_idf
@@ -99,12 +135,30 @@ def insert_keyword_statistics(url, term_frequency):
             (stem, url, tf_idf),
         )
 
+def insert_title_statistics(url, term_frequency):
+    """Insert TF-IDF values into the title_statistics table."""
+    total_documents = get_total_documents()
+    for stem, tf in term_frequency.items():
+        title_frequency = get_title_frequency(stem)
+        idf = math.log(total_documents / title_frequency)
+        tf_idf = tf * idf
+        cursor.execute(
+            """
+            INSERT INTO title_statistics (title, url, tf_idf)
+            VALUES (?, ?, ?)
+            ON CONFLICT(title, url) DO UPDATE SET
+                tf_idf=excluded.tf_idf
+            """,
+            (stem, url, tf_idf),
+        )
+        
 
 def process_page(page):
     """Process a single page and insert its data into the database."""
     url = page["url"]
     title = page["title"]
     last_modified = datetime.strptime(page["last_modified"], "%a, %d %b %Y %H:%M:%S %Z")
+    #last_modified = datetime.strptime(page["last_modified"], "%Y-%m-%d %H:%M:%S")
     parent_url = page["parent_url"]
     body_text = page["body_text"]
     #size = len(body_text)
@@ -113,6 +167,9 @@ def process_page(page):
     # Insert URL and forward index
     insert_url(url)
     insert_forward_index(url, title, last_modified, size)
+    
+    # Added: title_forward_index
+    insert_title_foward_index(url, title)
 
     # Insert page relationship if parent_url exists
     insert_page_relationship(parent_url, url)
@@ -123,7 +180,21 @@ def process_page(page):
     # Get the indexed data
     title_stems = indexer.stem(indexer.tokenize(title))
     body_stems = indexer.stem(indexer.tokenize(body_text))
-
+    
+    # Culate term frequency for title and body
+    title_term_frequency = calculate_term_frequency(title_stems)
+    body_term_frequency = calculate_term_frequency(body_stems)
+    
+    # Insert title words and inverted index, and body words and inverted index
+    insert_titles_and_titl_inverted_index(url, title_term_frequency) 
+    insert_words_and_inverted_index(url, body_term_frequency)
+    
+    # Insert title and body statistics
+    
+    insert_word_statistics(url, body_term_frequency)
+    insert_title_statistics(url, title_term_frequency)
+    
+    '''
     # Combine title and body stems
     all_stems = title_stems + body_stems
 
@@ -135,6 +206,7 @@ def process_page(page):
 
     # Insert keyword statistics
     insert_keyword_statistics(url, term_frequency)
+    '''
 
 
 def add_pages(pages: list[dict]):

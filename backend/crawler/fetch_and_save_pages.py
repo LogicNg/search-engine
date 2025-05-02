@@ -86,7 +86,7 @@ def recursive_fetch(base_url: str) -> List[Dict[str, Optional[str]]]:
     visited: Set[str] = set()
     queue = deque([(base_url, None)])  # (current_url, parent_url)
     results = []
-    max_pages = 30
+    max_pages = 300
     fetched_count = 0
 
     while queue:
@@ -122,6 +122,7 @@ def recursive_fetch(base_url: str) -> List[Dict[str, Optional[str]]]:
         except Exception as e:
             print(f"Failed to fetch {current_url}: {e}")
 
+    print(f"Fetched {fetched_count} pages.")
     return results
 
 
