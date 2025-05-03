@@ -42,19 +42,35 @@ def insert_page_relationship(parent_url, child_url):
         )
 
 
-def calculate_term_frequency(stems):
-    """Calculate the term frequency for a list of stems."""
+def calculate_term_frequency(tokens):
+    """Calculate the term frequency for tokens (words or n-grams)."""
     term_frequency = defaultdict(int)
-    for stem in stems:
-        term_frequency[stem] += 1
+    for token in tokens:
+        term_frequency[token] += 1
     return term_frequency
 
 
-def insert_words_and_inverted_index(url, term_frequency):
-    """Insert words and their term frequencies into the words and inverted_index tables."""
-    for stem, tf in term_frequency.items():
-        # Insert into words table
-        cursor.execute("INSERT OR IGNORE INTO tokens (word) VALUES (?)", (stem,))
+def generate_ngrams(tokens, n):
+    """Generate n-grams from a list of tokens."""
+    return [" ".join(tokens[i : i + n]) for i in range(len(tokens) - n + 1)]
+
+
+def insert_words_and_inverted_index(url, term_frequencies):
+    """Insert words/n-grams and their term frequencies into the tokens and inverted_index tables."""
+    for token_info, tf in term_frequencies.items():
+        if isinstance(token_info, tuple):
+            # Handle n-gram case where token_info is (token, n)
+            token, ngram_size = token_info
+        else:
+            # Handle single word case
+            token = token_info
+            ngram_size = 1
+
+        # Insert into tokens table with ngram_size
+        cursor.execute(
+            "INSERT OR IGNORE INTO tokens (word, ngram_size) VALUES (?, ?)",
+            (token, ngram_size),
+        )
 
         # Insert into inverted_index table
         cursor.execute(
@@ -64,7 +80,7 @@ def insert_words_and_inverted_index(url, term_frequency):
             ON CONFLICT(word, url) DO UPDATE SET
                 term_frequency=excluded.term_frequency
             """,
-            (stem, url, tf),
+            (token, url, tf),
         )
 
 
@@ -74,30 +90,36 @@ def get_total_documents():
     return cursor.fetchone()[0]
 
 
-def get_document_frequency(stem):
+def get_document_frequency(token):
     """Get the number of documents in which the term appears."""
     cursor.execute(
-        "SELECT COUNT(DISTINCT url) FROM inverted_index WHERE word = ?", (stem,)
+        "SELECT COUNT(DISTINCT url) FROM inverted_index WHERE word = ?", (token,)
     )
     return cursor.fetchone()[0]
 
 
-def insert_keyword_statistics(url, term_frequency):
+def insert_keyword_statistics(url, term_frequencies):
     """Insert TF-IDF values into the keyword_statistics table."""
     total_documents = get_total_documents()
-    for stem, tf in term_frequency.items():
-        document_frequency = get_document_frequency(stem)
-        idf = math.log(total_documents / document_frequency)
-        tf_idf = tf * idf
-        cursor.execute(
-            """
-            INSERT INTO keyword_statistics (word, url, tf_idf)
-            VALUES (?, ?, ?)
-            ON CONFLICT(word, url) DO UPDATE SET
-                tf_idf=excluded.tf_idf
-            """,
-            (stem, url, tf_idf),
-        )
+    for token_info, tf in term_frequencies.items():
+        if isinstance(token_info, tuple):
+            token = token_info[0]  # Extract token from tuple
+        else:
+            token = token_info
+
+        document_frequency = get_document_frequency(token)
+        if document_frequency > 0:  # Avoid division by zero
+            idf = math.log(total_documents / document_frequency)
+            tf_idf = tf * idf
+            cursor.execute(
+                """
+                INSERT INTO keyword_statistics (word, url, tf_idf)
+                VALUES (?, ?, ?)
+                ON CONFLICT(word, url) DO UPDATE SET
+                    tf_idf=excluded.tf_idf
+                """,
+                (token, url, tf_idf),
+            )
 
 
 def process_page(page):
@@ -107,7 +129,6 @@ def process_page(page):
     last_modified = datetime.strptime(page["last_modified"], "%a, %d %b %Y %H:%M:%S %Z")
     parent_url = page["parent_url"]
     body_text = page["body_text"]
-    # size = len(body_text)
     size = page["size"]
 
     # Insert URL and forward index
@@ -120,21 +141,41 @@ def process_page(page):
     # Index the page content
     indexer.index_page(url, title, body_text)
 
-    # Get the indexed data
-    title_stems = indexer.stem(indexer.tokenize(title))
-    body_stems = indexer.stem(indexer.tokenize(body_text))
+    # Get the tokenized data
+    title_tokens = indexer.stem(indexer.tokenize(title))
+    body_tokens = indexer.stem(indexer.tokenize(body_text))
 
-    # Combine title and body stems
+    # Process single words (unigrams)
+    title_stems = indexer.stem(title_tokens)
+    body_stems = indexer.stem(body_tokens)
     all_stems = title_stems + body_stems
 
-    # Calculate term frequency
-    term_frequency = calculate_term_frequency(all_stems)
+    # Calculate term frequencies for all tokens (including n-grams)
+    term_frequencies = defaultdict(int)
 
-    # Insert words and inverted index
-    insert_words_and_inverted_index(url, term_frequency)
+    # Add unigrams (single words)
+    for stem in all_stems:
+        term_frequencies[stem] += 1
+
+    # Generate and add n-grams (for n=2 and n=3)
+    for n in [2, 3]:
+        # Generate n-grams from title
+        if len(title_tokens) >= n:
+            title_ngrams = generate_ngrams(title_tokens, n)
+            for ngram in title_ngrams:
+                term_frequencies[(ngram, n)] += 1
+
+        # Generate n-grams from body
+        if len(body_tokens) >= n:
+            body_ngrams = generate_ngrams(body_tokens, n)
+            for ngram in body_ngrams:
+                term_frequencies[(ngram, n)] += 1
+
+    # Insert words/n-grams and inverted index
+    insert_words_and_inverted_index(url, term_frequencies)
 
     # Insert keyword statistics
-    insert_keyword_statistics(url, term_frequency)
+    insert_keyword_statistics(url, term_frequencies)
 
 
 def add_pages(pages: list[dict]):
@@ -150,6 +191,7 @@ def add_pages(pages: list[dict]):
                                        This can be None if there is no parent.
             - title (str): The title of the page to be added.
             - url (str): The URL of the page to be added.
+            - size (int): The size of the page.
 
     Returns:
         None: This function does not return any value.
