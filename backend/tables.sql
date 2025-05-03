@@ -10,8 +10,9 @@ CREATE TABLE IF NOT EXISTS page_relationships (
   FOREIGN KEY (child_url) REFERENCES urls (url)
 );
 
-CREATE TABLE IF NOT EXISTS words (
-  word TEXT PRIMARY KEY
+CREATE TABLE IF NOT EXISTS tokens (
+  word TEXT PRIMARY KEY,
+  ngram_size INT
 );
 
 CREATE TABLE IF NOT EXISTS forward_index (
@@ -27,7 +28,7 @@ CREATE TABLE IF NOT EXISTS inverted_index (
   url TEXT NOT NULL,
   term_frequency INT NOT NULL,
   PRIMARY KEY (word, url),
-  FOREIGN KEY (word) REFERENCES words (word),
+  FOREIGN KEY (word) REFERENCES tokens (word),
   FOREIGN KEY (url) REFERENCES urls (url)
 );
 
@@ -36,7 +37,7 @@ CREATE TABLE IF NOT EXISTS keyword_statistics (
   url TEXT NOT NULL,
   tf_idf FLOAT NOT NULL,
   PRIMARY KEY (word, url),
-  FOREIGN KEY (word) REFERENCES words (word),
+  FOREIGN KEY (word) REFERENCES tokens (word),
   FOREIGN KEY (url) REFERENCES urls (url)
 );
 

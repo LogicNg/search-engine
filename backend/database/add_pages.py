@@ -54,7 +54,7 @@ def insert_words_and_inverted_index(url, term_frequency):
     """Insert words and their term frequencies into the words and inverted_index tables."""
     for stem, tf in term_frequency.items():
         # Insert into words table
-        cursor.execute("INSERT OR IGNORE INTO words (word) VALUES (?)", (stem,))
+        cursor.execute("INSERT OR IGNORE INTO tokens (word) VALUES (?)", (stem,))
 
         # Insert into inverted_index table
         cursor.execute(
@@ -107,7 +107,7 @@ def process_page(page):
     last_modified = datetime.strptime(page["last_modified"], "%a, %d %b %Y %H:%M:%S %Z")
     parent_url = page["parent_url"]
     body_text = page["body_text"]
-    #size = len(body_text)
+    # size = len(body_text)
     size = page["size"]
 
     # Insert URL and forward index
