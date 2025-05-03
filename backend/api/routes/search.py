@@ -104,9 +104,35 @@ pages = [
 """
 
 
+def levenshtein_distance(s1, s2):
+    """Calculate the Levenshtein distance between two strings."""
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+
+    if len(s2) == 0:
+        return len(s1)
+
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+
+    return previous_row[-1]
+
+
 @search_bp.route("/search")
 def search():
     query = request.args.get("query", "").lower()
+    fuzzy_threshold = int(
+        request.args.get("fuzzy_threshold", "2")
+    )  # Default edit distance threshold
+    enable_fuzzy = request.args.get("fuzzy", "true").lower() == "true"
+
     if not query:
         return jsonify({"error": "Query parameter is required"}), 400
 
@@ -116,10 +142,39 @@ def search():
     if not query_tokens:
         return jsonify({"results": []})
 
-    # Get all documents that match any query token
-    placeholders = ",".join(["?"] * len(query_tokens))
-
     cursor = get_cursor()
+
+    # Get expanded tokens with fuzzy matching if enabled
+    expanded_tokens = set(query_tokens)
+    token_similarities = {}  # Store similarity scores for expanded tokens
+
+    if enable_fuzzy:
+        # Get all words from the tokens table for fuzzy matching
+        cursor.execute("SELECT word FROM tokens")
+        all_words = [row[0] for row in cursor.fetchall()]
+
+        # For each token in the query, find similar words
+        for token in query_tokens:
+            token_similarities[token] = {}  # Initialize similarity dict for token
+
+            for word in all_words:
+                if word == token:
+                    token_similarities[token][
+                        word
+                    ] = 1.0  # Exact match has similarity 1.0
+                    continue
+
+                distance = levenshtein_distance(token, word)
+                if distance <= fuzzy_threshold:
+                    # Calculate similarity score (1.0 for exact match, decreasing as distance increases)
+                    similarity = 1.0 - (distance / (fuzzy_threshold + 1))
+                    expanded_tokens.add(word)
+                    token_similarities[token][word] = similarity
+
+    # Get all documents that match any expanded token
+    placeholders = ",".join(["?"] * len(expanded_tokens))
+    expanded_tokens_list = list(expanded_tokens)
+
     cursor.execute(
         f"""
             SELECT DISTINCT f.url, f.title, f.last_modified_date, f.size, p.rank
@@ -128,7 +183,7 @@ def search():
             JOIN inverted_index i ON f.url = i.url
             WHERE i.word IN ({placeholders})
         """,
-        query_tokens,
+        expanded_tokens_list,
     )
 
     documents = cursor.fetchall()
@@ -142,43 +197,81 @@ def search():
         url, title, last_modified, size, page_rank = doc
 
         # Get document title vector based on TF-IDF
+        title_placeholders = ",".join(["?"] * len(expanded_tokens))
         cursor.execute(
             f"""
                 SELECT word, tf_idf
                 FROM keyword_statistics
-                WHERE url = ? AND word IN ({placeholders})
+                WHERE url = ? AND word IN ({title_placeholders})
             """,
-            [url] + query_tokens,
+            [url] + expanded_tokens_list,
         )
 
         # Create document title vector
         title_vector = {word: tfidf for word, tfidf in cursor.fetchall()}
         title_magnitude = math.sqrt(sum(v * v for v in title_vector.values()))
 
-        # Calculate cosine similarity for title
+        # Calculate cosine similarity for title with fuzzy matching
         if title_magnitude > 0:
-            dot_product = sum(1 * title_vector.get(token, 0) for token in query_tokens)
+            dot_product = 0
+
+            # For each query token, find the best matching document token
+            for q_token in query_tokens:
+                best_match_score = 0
+
+                # Check exact match first
+                if q_token in title_vector:
+                    best_match_score = title_vector[q_token]
+                elif enable_fuzzy:
+                    # Check fuzzy matches
+                    for doc_token in title_vector:
+                        if doc_token in token_similarities.get(q_token, {}):
+                            similarity = token_similarities[q_token][doc_token]
+                            match_score = title_vector[doc_token] * similarity
+                            best_match_score = max(best_match_score, match_score)
+
+                dot_product += best_match_score
+
             title_cos_sim = dot_product / (title_magnitude * query_magnitude)
         else:
             title_cos_sim = 0
 
         # Get document body vector based on term frequency
+        body_placeholders = ",".join(["?"] * len(expanded_tokens))
         cursor.execute(
             f"""
                 SELECT word, term_frequency
                 FROM inverted_index
-                WHERE url = ? AND word IN ({placeholders})
+                WHERE url = ? AND word IN ({body_placeholders})
             """,
-            [url] + query_tokens,
+            [url] + expanded_tokens_list,
         )
 
         # Create document body vector
         body_vector = {word: tf for word, tf in cursor.fetchall()}
         body_magnitude = math.sqrt(sum(v * v for v in body_vector.values()))
 
-        # Calculate cosine similarity for body
+        # Calculate cosine similarity for body with fuzzy matching
         if body_magnitude > 0:
-            dot_product = sum(1 * body_vector.get(token, 0) for token in query_tokens)
+            dot_product = 0
+
+            # For each query token, find the best matching document token
+            for q_token in query_tokens:
+                best_match_score = 0
+
+                # Check exact match first
+                if q_token in body_vector:
+                    best_match_score = body_vector[q_token]
+                elif enable_fuzzy:
+                    # Check fuzzy matches
+                    for doc_token in body_vector:
+                        if doc_token in token_similarities.get(q_token, {}):
+                            similarity = token_similarities[q_token][doc_token]
+                            match_score = body_vector[doc_token] * similarity
+                            best_match_score = max(best_match_score, match_score)
+
+                dot_product += best_match_score
+
             body_cos_sim = dot_product / (body_magnitude * query_magnitude)
         else:
             body_cos_sim = 0
