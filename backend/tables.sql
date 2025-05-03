@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS page_relationships (
   FOREIGN KEY (child_url) REFERENCES urls (url)
 );
 
+--- This table stores the tokens (words) and their n-gram sizes.
 CREATE TABLE IF NOT EXISTS tokens (
   word TEXT PRIMARY KEY,
   ngram_size INT
