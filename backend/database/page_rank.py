@@ -6,6 +6,65 @@ import networkx as nx
 from database.db import connection, cursor
 
 
+def custom_pagerank(graph, alpha=0.85, max_iterations=100, tolerance=1.0e-6):
+    """
+    Custom implementation of the PageRank algorithm.
+
+    Parameters:
+    - graph: A NetworkX directed graph
+    - alpha: Damping factor (typically 0.85)
+    - max_iterations: Maximum number of iterations
+    - tolerance: Convergence threshold
+
+    Returns:
+    - Dictionary mapping nodes to PageRank scores
+    """
+    nodes = list(graph.nodes())
+    n = len(nodes)
+
+    # If the graph is empty, return an empty dictionary
+    if n == 0:
+        return {}
+
+    # Create a mapping from node names to indices
+    # node_indices = {node: i for i, node in enumerate(nodes)}
+
+    # Initialize the PageRank scores (uniform distribution)
+    pr = {node: 1.0 / n for node in nodes}
+
+    # Precompute outgoing edges for each node
+    outgoing_edges = {}
+    for node in nodes:
+        outgoing = list(graph.successors(node))
+        outgoing_edges[node] = outgoing
+
+    # Iterative PageRank calculation
+    for _ in range(max_iterations):
+        next_pr = {node: (1.0 - alpha) / n for node in nodes}
+
+        # Calculate the contribution of each node to its neighbors
+        for node in nodes:
+            out_neighbors = outgoing_edges[node]
+            if out_neighbors:  # If the node has outgoing edges
+                weight = alpha * pr[node] / len(out_neighbors)
+                for neighbor in out_neighbors:
+                    next_pr[neighbor] += weight
+            else:  # Distribute evenly if no outgoing edges (dangling node)
+                weight = alpha * pr[node] / n
+                for target in nodes:
+                    next_pr[target] += weight
+
+        # Check for convergence
+        diff = sum(abs(next_pr[node] - pr[node]) for node in nodes)
+        pr = next_pr
+        if diff < tolerance:
+            break
+
+    # Normalize scores to sum to 1
+    total = sum(pr.values())
+    return {node: score / total for node, score in pr.items()}
+
+
 def calculate_page_rank():
     """Calculate PageRank scores and save them to the database"""
 
@@ -28,8 +87,8 @@ def calculate_page_rank():
     for parent, child in relationships:
         graph.add_edge(parent, child)
 
-    # Calculate PageRank
-    pagerank_scores = nx.pagerank(graph, alpha=0.85)
+    # Calculate PageRank using our custom implementation
+    pagerank_scores = custom_pagerank(graph, alpha=0.85)
 
     # Update the database with PageRank scores
     try:
@@ -67,8 +126,8 @@ def plot_page_graph():
     for parent, child in relationships:
         graph.add_edge(extract_page_name(parent), extract_page_name(child))
 
-    # Calculate PageRank for visualization
-    pagerank_scores = nx.pagerank(graph)
+    # Calculate PageRank for visualization using our custom implementation
+    pagerank_scores = custom_pagerank(graph)
 
     # Scale node sizes based on PageRank
     node_sizes = [20000 * score for score in pagerank_scores.values()]
