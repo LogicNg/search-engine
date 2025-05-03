@@ -1,17 +1,13 @@
+import math
+
 from flask import Blueprint, jsonify, request
+
+from api.get_cursor import get_cursor
 
 search_bp = Blueprint("search", __name__)
 
-# sample data
 """
-title: Dinosaur Planet (2003)
-url: https://www.cse.ust.hk/~kwtleung/COMP4321/Movie/1.html
-last_mod_date: 2023-05-16 05:03:16
-size: 3605
-keywords: dinosaur 28; titl 15; search 15; planet 12; movi 9; tv 7; match 7; result 6; imdb 5; episod 5
-"""
-
-# Sample data
+# Sample result
 pages = [
     {
         "score": 0.99999,
@@ -105,6 +101,7 @@ pages = [
         ],
     },
 ]
+"""
 
 
 @search_bp.route("/search")
@@ -113,9 +110,149 @@ def search():
     if not query:
         return jsonify({"error": "Query parameter is required"}), 400
 
-    print(f"Received search query: {query}")
-    filtered_pages = []
-    for page in pages:
-        if query in page["title"].lower() or query in page["link"].lower():
-            filtered_pages.append(page)
-    return jsonify(filtered_pages)
+    # Get query tokens
+    query_tokens = query.split()
+
+    if not query_tokens:
+        return jsonify({"results": []})
+
+    # Get all documents that match any query token
+    placeholders = ",".join(["?"] * len(query_tokens))
+
+    cursor = get_cursor()
+    cursor.execute(
+        f"""
+            SELECT DISTINCT f.url, f.title, f.last_modified_date, f.size, p.rank
+            FROM forward_index f
+            JOIN page_rank p ON f.url = p.url
+            JOIN inverted_index i ON f.url = i.url
+            WHERE i.word IN ({placeholders})
+        """,
+        query_tokens,
+    )
+
+    documents = cursor.fetchall()
+    results = []
+
+    # Create query vector (binary: 1 if term is present)
+    query_vector = {token: 1 for token in query_tokens}
+    query_magnitude = math.sqrt(len(query_tokens))  # Since all weights are 1
+
+    for doc in documents:
+        url, title, last_modified, size, page_rank = doc
+
+        # Get document title vector based on TF-IDF
+        cursor.execute(
+            f"""
+                SELECT word, tf_idf
+                FROM keyword_statistics
+                WHERE url = ? AND word IN ({placeholders})
+            """,
+            [url] + query_tokens,
+        )
+
+        # Create document title vector
+        title_vector = {word: tfidf for word, tfidf in cursor.fetchall()}
+        title_magnitude = math.sqrt(sum(v * v for v in title_vector.values()))
+
+        # Calculate cosine similarity for title
+        if title_magnitude > 0:
+            dot_product = sum(1 * title_vector.get(token, 0) for token in query_tokens)
+            title_cos_sim = dot_product / (title_magnitude * query_magnitude)
+        else:
+            title_cos_sim = 0
+
+        # Get document body vector based on term frequency
+        cursor.execute(
+            f"""
+                SELECT word, term_frequency
+                FROM inverted_index
+                WHERE url = ? AND word IN ({placeholders})
+            """,
+            [url] + query_tokens,
+        )
+
+        # Create document body vector
+        body_vector = {word: tf for word, tf in cursor.fetchall()}
+        body_magnitude = math.sqrt(sum(v * v for v in body_vector.values()))
+
+        # Calculate cosine similarity for body
+        if body_magnitude > 0:
+            dot_product = sum(1 * body_vector.get(token, 0) for token in query_tokens)
+            body_cos_sim = dot_product / (body_magnitude * query_magnitude)
+        else:
+            body_cos_sim = 0
+
+        # Calculate final score using the formula:
+        # (0.7 * CosSim(d_t,Q) + 0.3 * CosSim(d_b,Q)) * PageRank(d_t)
+        final_score = (0.7 * title_cos_sim + 0.3 * body_cos_sim) * page_rank
+
+        # Skip documents with very low scores
+        if final_score < 0.01:
+            continue
+
+        # Get top keywords
+        cursor.execute(
+            """
+                SELECT i.word, i.term_frequency
+                FROM inverted_index i
+                WHERE i.url = ?
+                ORDER BY i.term_frequency DESC
+                LIMIT 10
+            """,
+            (url,),
+        )
+
+        keywords = {word: str(freq) for word, freq in cursor.fetchall()}
+
+        # Get children links
+        cursor.execute(
+            """
+                SELECT child_url
+                FROM page_relationships
+                WHERE parent_url = ?
+            """,
+            (url,),
+        )
+
+        children_links = [row[0] for row in cursor.fetchall()]
+
+        # Get parent links
+        cursor.execute(
+            """
+                SELECT parent_url
+                FROM page_relationships
+                WHERE child_url = ?
+            """,
+            (url,),
+        )
+
+        parent_links = [row[0] for row in cursor.fetchall()]
+
+        # Format file size
+        if size < 1024:
+            file_size = f"{size}B"
+        elif size < 1024 * 1024:
+            file_size = f"{size/1024:.1f}KB"
+        else:
+            file_size = f"{size/(1024*1024):.1f}MB"
+
+        # Create result object
+        result = {
+            "score": final_score,
+            "title": title,
+            "link": url,
+            "last_modification_date": last_modified,
+            "file_size": file_size,
+            "keywords": keywords,
+            "children_links": children_links,
+            "parent_links": parent_links,
+        }
+
+        results.append(result)
+
+    # Sort results by score in descending order
+    results.sort(key=lambda x: x["score"], reverse=True)
+
+    # Return top results
+    return jsonify({"results": results[:10]})
