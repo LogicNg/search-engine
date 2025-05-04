@@ -52,7 +52,7 @@ const App: React.FC = () => {
     setIsSuggestionClicked(false);
 
     if (value) {
-      fetch("/suggestions")
+      fetch(`/suggestions?query=${encodeURIComponent(value)}`)
         .then((res) => res.json())
         .then((data) => {
           setSuggestions(data);
