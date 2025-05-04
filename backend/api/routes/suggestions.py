@@ -26,7 +26,7 @@ def suggestions():
         matches are found.
     """
     # Get query parameters
-    query = request.args.get("q", "").lower().strip()
+    query = request.args.get("query", "").lower().strip()
     enable_fuzzy = request.args.get("fuzzy", "false").lower() == "true"
     threshold = int(request.args.get("threshold", "2"))
 
