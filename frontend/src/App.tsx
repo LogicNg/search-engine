@@ -31,6 +31,8 @@ const App: React.FC = () => {
   const [searched, setSearched] = useState(false);
   const [isSuggestionClicked, setIsSuggestionClicked] = useState(false);
 
+  const [isSearching, setIsSearching] = useState(false);
+
   //Get history
   useEffect(() => {
     fetch("/history")
@@ -70,12 +72,13 @@ const App: React.FC = () => {
       alert("Please enter a query");
       return;
     }
+    setIsSearching(true);
     fetch(`/search?query=${encodeURIComponent(query)}`)
       .then((res) => res.json())
       .then((data) => {
         //data.sort((a: ContentCardData, b: ContentCardData) => b.score - a.score);
         setSearchResult(data);
-        //console.log(data);
+        setIsSearching(false);
       })
       .catch((err) => console.error("Error fetching search result:", err));
   };
@@ -98,7 +101,6 @@ const App: React.FC = () => {
   }, [history]);
 
   //Voice input
-  const [isListening, setIsListening] = useState(false);
 
   const {
     transcript,
@@ -363,7 +365,29 @@ const App: React.FC = () => {
             </ul>
           )}
 
-          {searchResult.length > 0 && (
+          {/* Circular loader while waiting for search result */}
+          {isSearching && (
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+              <svg
+                className="animate-spin h-10 w-10 text-[#21B8CD]"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  fill="currentColor"
+                  d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8.009,8.009,0,0,1,12,20Z"
+                />
+                <path
+                  fill="currentColor"
+                  d="M12.5,6h-1V12h5v-1H12.5Z"
+                />
+              </svg>
+            </div>
+          )}
+
+          {/* Search Results */}
+
+          {searchResult.length > 0 && !isSearching && (
             <div className="relative w-full h-[85vh] overflow-y-auto scroll-mr-3">
               {searchResult.map((item, index) => (
                 <div className="py-2 mt-3" key={index}>
