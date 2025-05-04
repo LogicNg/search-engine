@@ -152,7 +152,29 @@ def insert_title_statistics(url, term_frequency, max_title_tf):
             """,
             (stem, url, tf_idf),
         )
-        
+
+#Referenced from insert_words_and_inverted_index(url, term_frequencies)
+def insert_tokens(url, term_frequencies):
+    """Insert words/n-grams and their term frequencies into the tokens"""
+    for token_info, tf in term_frequencies.items():
+        if isinstance(token_info, tuple):
+            # Handle n-gram case where token_info is (token, n)
+            token, ngram_size = token_info
+        else:
+            # Handle single word case
+            token = token_info
+            ngram_size = 1
+
+        # Insert into tokens table with ngram_size
+        cursor.execute(
+            "INSERT OR IGNORE INTO tokens (word, ngram_size) VALUES (?, ?)",
+            (token, ngram_size),
+        )
+
+def generate_ngrams(tokens, n):
+    """Generate n-grams from a list of tokens."""
+    return [" ".join(tokens[i : i + n]) for i in range(len(tokens) - n + 1)]
+      
 def process_page(page):
     """Process a single page and insert its data into the database."""
     url = page["url"]
@@ -194,11 +216,37 @@ def process_page(page):
     insert_titles_and_titl_inverted_index(url, title_term_frequency) 
     insert_words_and_inverted_index(url, body_term_frequency)
     
-    # Insert title and body statistics
+    ###############################################################
+    # Here handle token and n-grams
     
-    #insert_word_statistics(url, body_term_frequency)
-    #insert_title_statistics(url, title_term_frequency)
+    # Get the tokenized data
+    title_tokens = indexer.stem(indexer.tokenize(title))
+    body_tokens = indexer.stem(indexer.tokenize(body_text))
+    
+    # Calculate term frequencies for all tokens (including n-grams)
+    term_frequencies = defaultdict(int)
+    all_stems = title_stems + body_stems
+    
+    # Add unigrams (single words)
+    for stem in all_stems:
+        term_frequencies[stem] += 1
 
+    # Generate and add n-grams (for n=2 and n=3)
+    for n in [2, 3]:
+        # Generate n-grams from title
+        if len(title_tokens) >= n:
+            title_ngrams = generate_ngrams(title_tokens, n)
+            for ngram in title_ngrams:
+                term_frequencies[(ngram, n)] += 1
+
+        # Generate n-grams from body
+        if len(body_tokens) >= n:
+            body_ngrams = generate_ngrams(body_tokens, n)
+            for ngram in body_ngrams:
+                term_frequencies[(ngram, n)] += 1
+
+    insert_tokens(url, term_frequencies)
+    
 
 def compute_word_and_title_statistics():
     """Compute and insert word and title statistics into the database."""
