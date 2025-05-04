@@ -274,7 +274,98 @@ def getDocumentTitleVector(url):
     
     return document_vector
 
-
+def getPageDetails(url, score):
+    # Get the page details
+    '''
+    {
+        "score": 0.99999,
+        "title": "Home Move (2001) sfasdfasdfsadfasdfasdfas",
+        "link": "https://www.cse.hk.hk/alumni/2016-06-08",
+        "last_modification_date": "2016-06-16T00:00:00Z",
+        "file_size": "5931B",
+        "keywords": {"CSE": "3", "MOV": "5", "TEST": "4"},
+        "children_links": [
+            "http://childlink1.com",
+            "http://childlink2.com",
+            "http://childlink3.com",
+            "http://childlink1.com",
+            "http://childlink2.com",
+            "http://childlink3.com",
+            "http://childlink1.com",
+            "http://childlink2.com",
+            "http://childlink3.com",
+        ],
+        "parent_links": [
+            "http://parentlink1.com",
+            "http://parentlink2.com",
+            "http://parentlink3.com",
+        ],
+    }
+    '''
+    #5 decimal places
+    score = "{:.5f}".format(score)
+    page_details = cursor.execute(
+        """SELECT title, last_modified_date, size FROM forward_index WHERE url = ?""",
+        (url,),
+    ).fetchone()
+    
+    #Get top 5 stemmed keyword from the page (from inverted_index and title_inverted_index)
+    content_keywords = cursor.execute(
+        """SELECT word, term_frequency FROM inverted_index WHERE url = ? ORDER BY term_frequency DESC""",
+        (url,),
+    ).fetchall()
+    
+    title_keywords = cursor.execute(
+        """SELECT title, term_frequency FROM title_inverted_index WHERE url = ? ORDER BY term_frequency DESC""",
+        (url,),
+    ).fetchall()
+    
+    
+    print(f"Content keywords: {content_keywords}")
+    print(f"Title keywords: {title_keywords}")
+    # Combine 2 lists and form a dict, then extract the top 5
+    keywords = {}
+    for word, tf in content_keywords:
+        keywords[word] = tf
+    for title, tf in title_keywords:
+        if title in keywords:
+            keywords[title] += tf
+        else:
+            keywords[title] = tf 
+            
+    sorted_keywords = sorted(keywords.items(), key=lambda item: item[1], reverse=True) 
+    top_keywords = sorted_keywords[:5]
+    
+    dictkeyword = {word: str(tf) for word, tf in top_keywords} 
+    
+    # Get parent and children links
+    children_links = cursor.execute(
+        """SELECT child_url FROM page_relationships WHERE parent_url = ?""",
+        (url,),
+    ).fetchall()
+    
+    parent_links = cursor.execute(
+        """SELECT parent_url FROM page_relationships WHERE child_url = ?""",
+        (url,),
+    ).fetchall()
+    
+    children_links = [child[0] for child in children_links]
+    parent_links = [parent[0] for parent in parent_links]
+    
+    if page_details:
+        title, last_modified_date, size = page_details
+        return {
+            "score": score,  # Placeholder for score
+            "title": title,
+            "link": url,
+            "last_modification_date": last_modified_date,
+            "file_size": f"{size}B",
+            "keywords": dictkeyword,
+            "children_links": children_links,
+            "parent_links": parent_links,
+        }
+    else:
+        return None
 
 @search_bp.route("/search")
 def search():
@@ -345,7 +436,7 @@ def search():
     combined_similarity = dict(sorted(combined_similarity.items(), key=lambda item: item[1], reverse=True)) 
     
     # Get the top 10 results
-    top_results = list(combined_similarity.items())[:10] 
+    top_results = list(combined_similarity.items())[:50] 
     #Show the top result, and the score should be in float with 10 decimal places
     result = []
     for url, score in top_results:
@@ -353,6 +444,7 @@ def search():
         print(f"{url}: {score:.10f}")
             # Add keywords, children links, and parent links
     
-
-    # Parse the query into keywords
-    return jsonify([])
+        result.append(getPageDetails(url, score))
+        
+    
+    return jsonify(result)
