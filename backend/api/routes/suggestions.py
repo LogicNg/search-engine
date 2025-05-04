@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 
-from api.routes.search import levenshtein_distance
+from api.routes.search_logic import levenshtein_distance
 from api.utils.get_cursor import get_cursor
 
 suggestions_bp = Blueprint("suggestions", __name__)
