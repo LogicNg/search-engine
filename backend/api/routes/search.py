@@ -1,4 +1,10 @@
 from flask import Blueprint, jsonify, request
+from collections import defaultdict
+from nltk.stem import PorterStemmer
+import sqlite3
+import re
+from collections import Counter
+from database.db import connection, cursor
 
 search_bp = Blueprint("search", __name__)
 
@@ -106,16 +112,153 @@ pages = [
     },
 ]
 
+title_match_weight = 0.7
+keyword_match_weight = 0.3
+
+
+stop_words = []
+with open("./database/stopwords.txt", "r") as f:
+    stop_words = set(f.read().split())
+    
+stemmer = PorterStemmer()
+title_index = defaultdict(list)
+body_index = defaultdict(list)
+
+def parse_query(query):
+    """
+    Parse query into single word and phrases, the remove stop words and stem the keywords.
+    """
+    
+    word_list = []
+    phrase_list = []
+    
+    # Handle single words
+    for word in query.split():
+        processed_word = re.sub(r"[^a-zA-Z0-9]", "", word)
+        if processed_word in stop_words:
+            continue
+        stemmed_word = stemmer.stem(word)
+        word_list.append(stemmed_word)
+    
+    # Handle phrases
+    phrase_pattern = re.compile(r'"([^"]*)"')
+    phrases = phrase_pattern.findall(query)
+    for phrase in phrases:
+        phrase_word = phrase.split()
+        processed_phrase_word = []
+        for word in phrase_word:
+            word = word.lower()
+            if word not in stop_words:
+                stemmed_word = stemmer.stem(word)
+                processed_phrase_word.append(stemmed_word)
+                
+        processed_phrase_word = " ".join(processed_phrase_word)        
+        processed_stemmed_phrase = r"(?<!\S){}(?!\S)".format(processed_phrase_word)
+        phrase_list.append(processed_stemmed_phrase)
+    
+    return [word_list, phrase_list]
+    
+def get_tf_score(query):
+    word_tf = Counter(query)
+    vector = {}
+    #output as {"word": tf, ...}
+    for word, tf in list(word_tf.items()): 
+        vector[word] = tf
+        
+    return vector
+
+
+
+def checkIfInDocument(url, query_vector):
+    title = cursor.execute(
+        """SELECT stemmed_title FROM page_stemmed_title WHERE url = ?""",
+        (url,),
+    ).fetchone()[0]
+    
+    content = cursor.execute(
+        """SELECT stemmed_word FROM page_stemmed_word WHERE url = ?""",
+        (url,),
+    ).fetchone()[0]
+    
+    # Turn to a list
+    title = title.split()
+    content = content.split()
+    
+    for word in query_vector:
+        # Check if the word is in the title 
+        if word in title or word in content: 
+            return True
+    
+    return False
+
+def checkIfPhraseInDocument(url, phrase_vector): 
+    title = cursor.execute(
+        """SELECT stemmed_title FROM page_stemmed_title WHERE url = ?""",
+        (url,),
+    ).fetchone()[0]
+    
+    content = cursor.execute(
+        """SELECT stemmed_word FROM page_stemmed_word WHERE url = ?""",
+        (url,),
+    ).fetchone()[0]
+     
+    
+    # Turn to a list
+    #title = title.split()
+   #content = content.split()
+    
+    for phrase in phrase_vector:
+        # Check if the word is in the title 
+        if re.search(phrase, title):
+            print(f"Found phrase: {phrase} in {url} with title: {title}")
+            return True
+    
+    return False
+    
+def computeCosineSimilarity():
+    return 0
 
 @search_bp.route("/search")
 def search():
     query = request.args.get("query", "").lower()
     if not query:
         return jsonify({"error": "Query parameter is required"}), 400
+    
+    parsed_query = parse_query(query)
+    print(f"Parsed query: {parsed_query}")
+    
+    
+    # Count tf of each query word
+    query_vector = get_tf_score(parsed_query[0])
+    print(f"Query vector: {query_vector}")
+    
+    all_documents = cursor.execute("""SELECT url FROM urls""").fetchall()
+    
+    for document in all_documents:
+        url = document[0]
+        
+        if (parsed_query[1]): #have phrase
+            # Check if the phrase is in the document
+            if not checkIfPhraseInDocument(url, parsed_query[1]):
+                continue
+        if not checkIfInDocument(url, parsed_query[0]): 
+            continue
+        
+        #compute cosine similarity
+        
+        
+        
+        
+        # Check if this title contains any of the keywords in the query vector
+        
+        # Check for keyword match
+        
+            
+            
+            
+        pass
+       
+    
 
-    print(f"Received search query: {query}")
-    filtered_pages = []
-    for page in pages:
-        if query in page["title"].lower() or query in page["link"].lower():
-            filtered_pages.append(page)
-    return jsonify(filtered_pages)
+    # Parse the query into keywords
+    return jsonify([])
