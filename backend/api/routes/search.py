@@ -134,11 +134,14 @@ def parse_query(query):
     
     # Handle single words
     for word in query.split():
-        processed_word = re.sub(r"[^a-zA-Z0-9]", "", word)
+        processed_word = re.sub(r"[^a-zA-Z-]+", "", word.lower())
         if processed_word in stop_words:
             continue
         stemmed_word = stemmer.stem(word)
         word_list.append(stemmed_word)
+        
+    # Remove double quotation for words in word_list
+    word_list = [word.replace('"', "") for word in word_list]   
     
     # Handle phrases
     phrase_pattern = re.compile(r'"([^"]*)"')
@@ -205,18 +208,73 @@ def checkIfPhraseInDocument(url, phrase_vector):
     
     # Turn to a list
     #title = title.split()
-   #content = content.split()
+    #content = content.split()
     
     for phrase in phrase_vector:
         # Check if the word is in the title 
         if re.search(phrase, title):
-            print(f"Found phrase: {phrase} in {url} with title: {title}")
+            #print(f"Found phrase: {phrase} in {url}")
+            return True
+        if re.search(phrase, content):
+            #print(f"Found phrase: {phrase} in {url}")
             return True
     
     return False
     
-def computeCosineSimilarity():
-    return 0
+def computeCosineSimilarity(document_vector, query_vector):
+    # both document_vector and query_vector are dict
+    
+    if len(document_vector) == 0 or len(query_vector) == 0:
+        return 0.0
+    
+    # Remove unmatched words
+    mathced_document_vector = {}
+    for key, value in document_vector.items():
+        if key in query_vector:
+            mathced_document_vector[key] = value
+    
+    matched_query_vector = {}
+    for key, value in query_vector.items():
+        if key in document_vector:
+            matched_query_vector[key] = value
+    
+    # Compute cosine similarity
+    dot_product = sum(mathced_document_vector[word] * matched_query_vector[word] for word in matched_query_vector)
+    magnitude_document = sum(value ** 2 for value in document_vector.values()) ** 0.5
+    
+    # IDK there will be divide by 0 
+    if magnitude_document == 0:
+        return 0.0
+    
+    return dot_product / magnitude_document
+
+def getDocumentContentVector(url):
+    document_vector = {}
+    # Get all words and their tf_idf
+    word_and_tfidf = cursor.execute(
+                        """SELECT word, tf_idf FROM word_statistics WHERE url = ?""",
+                        (url,),
+                    )
+
+    for word, tf_idf in word_and_tfidf:
+        document_vector[word] = tf_idf
+    
+    return document_vector
+
+def getDocumentTitleVector(url):
+    document_vector = {}
+    # Get all words and their tf_idf
+    word_and_tfidf = cursor.execute(
+                        """SELECT title, tf_idf FROM title_statistics WHERE url = ?""",
+                        (url,),
+                    )
+
+    for word, tf_idf in word_and_tfidf:
+        document_vector[word] = tf_idf
+    
+    return document_vector
+
+
 
 @search_bp.route("/search")
 def search():
@@ -225,39 +283,75 @@ def search():
         return jsonify({"error": "Query parameter is required"}), 400
     
     parsed_query = parse_query(query)
-    print(f"Parsed query: {parsed_query}")
-    
+    #print(f"Parsed query: {parsed_query}")
     
     # Count tf of each query word
     query_vector = get_tf_score(parsed_query[0])
-    print(f"Query vector: {query_vector}")
+    #print(f"Query vector: {query_vector}")
     
     all_documents = cursor.execute("""SELECT url FROM urls""").fetchall()
     
+    # Store each document's title and body similarity score for retrieval
+    title_similarity = {}
+    content_similarity = {}
+    
     for document in all_documents:
         url = document[0]
+        #print(f"Processing {url}")
         
         if (parsed_query[1]): #have phrase
             # Check if the phrase is in the document
             if not checkIfPhraseInDocument(url, parsed_query[1]):
                 continue
-        if not checkIfInDocument(url, parsed_query[0]): 
-            continue
+        else:
+            if not checkIfInDocument(url, parsed_query[0]): 
+                continue
         
         #compute cosine similarity
         
+        #Get document vector
+        document_title_vector = getDocumentTitleVector(url)
+        document_content_vector = getDocumentContentVector(url)
         
+        title_similarity[url] = computeCosineSimilarity(document_title_vector, query_vector)
+        content_similarity[url] = computeCosineSimilarity(document_content_vector, query_vector)
         
+        #print(f"Title similarity for {url}: {title_similarity[url]}")
+        #print(f"Content similarity for {url}: {content_similarity[url]}")
+        #print("=" * 20)
         
-        # Check if this title contains any of the keywords in the query vector
-        
-        # Check for keyword match
-        
+    # Sort the 2 dict
+    title_similarity = dict(sorted(title_similarity.items(), key=lambda item: item[1], reverse=True))
+    content_similarity = dict(sorted(content_similarity.items(), key=lambda item: item[1], reverse=True))
+    
+    
+    # Combine the two similarity scores
+    combined_similarity = {}
+    
+    for url in title_similarity:
+        if url in combined_similarity:
+            combined_similarity[url] += title_match_weight * title_similarity[url] 
+        else:
+            combined_similarity[url] = title_match_weight * title_similarity[url]
             
-            
-            
-        pass
-       
+    for url in content_similarity:
+        if url not in combined_similarity:
+            combined_similarity[url] = keyword_match_weight * content_similarity[url]
+        else:
+            combined_similarity[url] += keyword_match_weight * content_similarity[url]
+        
+        
+        
+    combined_similarity = dict(sorted(combined_similarity.items(), key=lambda item: item[1], reverse=True)) 
+    
+    # Get the top 10 results
+    top_results = list(combined_similarity.items())[:10] 
+    #Show the top result, and the score should be in float with 10 decimal places
+    result = []
+    for url, score in top_results:
+        # Get the page details
+        print(f"{url}: {score:.10f}")
+            # Add keywords, children links, and parent links
     
 
     # Parse the query into keywords
