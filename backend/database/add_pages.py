@@ -118,13 +118,15 @@ def get_title_frequency(stem):
     return cursor.fetchone()[0]
 
 
-def insert_word_statistics(url, term_frequency):
+
+def insert_word_statistics(url, term_frequency, max_word_tf):
     """Insert TF-IDF values into the keyword_statistics table."""
-    total_documents = get_total_documents()
-    for stem, tf in term_frequency.items():
-        document_frequency = get_document_frequency(stem)
-        idf = math.log(total_documents / document_frequency)
-        tf_idf = tf * idf
+    total_documents = get_total_documents() 
+    
+    for stem, tf in term_frequency.items(): 
+        word_idf = get_document_frequency(stem)
+        idf = math.log2(total_documents / word_idf)
+        tf_idf = tf * idf / max_word_tf
         cursor.execute(
             """
             INSERT INTO word_statistics (word, url, tf_idf)
@@ -135,13 +137,14 @@ def insert_word_statistics(url, term_frequency):
             (stem, url, tf_idf),
         )
 
-def insert_title_statistics(url, term_frequency):
+def insert_title_statistics(url, term_frequency, max_title_tf):
     """Insert TF-IDF values into the title_statistics table."""
-    total_documents = get_total_documents()
+    total_documents = get_total_documents() 
+    
     for stem, tf in term_frequency.items():
-        title_frequency = get_title_frequency(stem)
-        idf = math.log(total_documents / title_frequency)
-        tf_idf = tf * idf
+        title_idf = get_title_frequency(stem)
+        idf = math.log2(total_documents / title_idf)
+        tf_idf = tf * idf / max_title_tf
         cursor.execute(
             """
             INSERT INTO title_statistics (title, url, tf_idf)
@@ -196,23 +199,39 @@ def process_page(page):
     
     # Insert title and body statistics
     
-    insert_word_statistics(url, body_term_frequency)
-    insert_title_statistics(url, title_term_frequency)
-    
-    '''
-    # Combine title and body stems
-    all_stems = title_stems + body_stems
+    #insert_word_statistics(url, body_term_frequency)
+    #insert_title_statistics(url, title_term_frequency)
 
-    # Calculate term frequency
-    term_frequency = calculate_term_frequency(all_stems)
 
-    # Insert words and inverted index
-    insert_words_and_inverted_index(url, term_frequency)
+def compute_word_and_title_statistics():
+    """Compute and insert word and title statistics into the database."""
+    cursor.execute("SELECT DISTINCT url FROM urls")
+    urls = cursor.fetchall()
 
-    # Insert keyword statistics
-    insert_keyword_statistics(url, term_frequency)
-    '''
-
+    for (url,) in urls:
+        # Get the term frequency for the body text from inverted_index
+        words_tf = cursor.execute(
+            "SELECT word, term_frequency FROM inverted_index WHERE url = ?", (url,)
+        ).fetchall()
+        
+        # Get the term frequency for the title from title_inverted_index
+        titles_tf = cursor.execute(
+            "SELECT title, term_frequency FROM title_inverted_index WHERE url = ?", (url,)
+        ).fetchall()
+        
+        # Convert the list of tuples to a dictionary
+        words_tf_dict = {word: tf for word, tf in words_tf}
+        titles_tf_dict = {title: tf for title, tf in titles_tf}
+        
+        # Get maxTF of word for this document
+        max_word_tf = max(words_tf_dict.values()) if words_tf_dict else 0
+        # Get maxTF of title for this document
+        max_title_tf = max(titles_tf_dict.values()) if titles_tf_dict else 0
+        
+        # Insert word statistics
+        insert_word_statistics(url, words_tf_dict, max_word_tf)
+        # Insert title statistics
+        insert_title_statistics(url, titles_tf_dict, max_title_tf)
 
 def add_pages(pages: list[dict]):
     """
@@ -233,5 +252,8 @@ def add_pages(pages: list[dict]):
     """
     for page in pages:
         process_page(page)
+    
+    # Compute and insert word and title statistics
+    compute_word_and_title_statistics()
 
     connection.commit()
