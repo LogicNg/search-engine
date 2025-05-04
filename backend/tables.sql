@@ -10,6 +10,14 @@ CREATE TABLE IF NOT EXISTS page_relationships (
   FOREIGN KEY (child_url) REFERENCES urls (url)
 );
 
+CREATE TABLE IF NOT EXISTS words (
+  word TEXT PRIMARY KEY
+);
+
+CREATE TABLE IF NOT EXISTS titles (
+  title TEXT PRIMARY KEY
+);
+
 --- This table stores the tokens (words) and their n-gram sizes.
 CREATE TABLE IF NOT EXISTS tokens (
   word TEXT PRIMARY KEY,
@@ -33,12 +41,36 @@ CREATE TABLE IF NOT EXISTS inverted_index (
   FOREIGN KEY (url) REFERENCES urls (url)
 );
 
-CREATE TABLE IF NOT EXISTS keyword_statistics (
+CREATE TABLE IF NOT EXISTS title_forward_index (
+  url TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  FOREIGN KEY (url) REFERENCES urls (url)
+);
+
+CREATE TABLE IF NOT EXISTS title_inverted_index (
+  title TEXT NOT NULL,
+  url TEXT NOT NULL,
+  term_frequency INT NOT NULL,
+  PRIMARY KEY (title, url),
+  FOREIGN KEY (title) REFERENCES titles (title),
+  FOREIGN KEY (url) REFERENCES urls (url)
+);
+
+CREATE TABLE IF NOT EXISTS word_statistics (
   word TEXT NOT NULL,
   url TEXT NOT NULL,
   tf_idf FLOAT NOT NULL,
   PRIMARY KEY (word, url),
   FOREIGN KEY (word) REFERENCES tokens (word),
+  FOREIGN KEY (url) REFERENCES urls (url)
+);
+
+CREATE TABLE IF NOT EXISTS title_statistics (
+  title TEXT NOT NULL,
+  url TEXT NOT NULL,
+  tf_idf FLOAT NOT NULL,
+  PRIMARY KEY (title, url),
+  FOREIGN KEY (title) REFERENCES titles (title),
   FOREIGN KEY (url) REFERENCES urls (url)
 );
 
