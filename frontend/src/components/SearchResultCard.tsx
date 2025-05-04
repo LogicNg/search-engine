@@ -24,6 +24,12 @@ const SearchResultCard: React.FC<ContentCardProps> = ({
     isDarkMode,
 }) => {
 
+    //Sort the keywords by score in descending order
+    const sortedKeywords = Object.entries(keywords).sort(([, scoreA], [, scoreB]) => {
+        return parseFloat(scoreB) - parseFloat(scoreA);
+    });
+    console.log("Sorted Keywords:", sortedKeywords);
+
     //a list of color, indicating high, medium, low score. 
     const scoreColor = score > 0.75 ? "bg-[#56EAFF]" : score > 0.5 ? "bg-[#1DBBD1]" : score > 0.25 ? "bg-[#0D7280]" : "bg-[#084F59]";
 
@@ -35,7 +41,7 @@ const SearchResultCard: React.FC<ContentCardProps> = ({
             {/* Score and Title */}
             <div className="flex items-center mb-2">
                 <div className={`${scoreColor} ${score > 0.5 ? "text-black" : "text-white"} px-2 py-1 rounded-md text-sm mr-4`}>
-                    {score.toFixed(5)}
+                    {score}
                 </div>
                 <h2 className="text-lg font-semibold truncate">{title}</h2>
             </div>
@@ -57,7 +63,7 @@ const SearchResultCard: React.FC<ContentCardProps> = ({
 
             {/* Keywords */}
             <div className="flex flex-wrap gap-2 mt-4 hover:cursor-pointer">
-                {Object.entries(keywords).map(([keyword, score], index) => (
+                {sortedKeywords.map(([keyword, score], index) => (
                     <div
                         key={index}
                         className={`${isDarkMode ? "bg-white" : "bg-[#dcdbdb]"} px-3 py-1 rounded-xl text-sm transition-transform transform hover:scale-105 active:scale-95`}
