@@ -5,5 +5,5 @@ import sqlite3
 #     os.remove("documents.db")
 
 # Global variables for easy access
-connection = sqlite3.connect("documents.db")
+connection = sqlite3.connect("documents.db", check_same_thread=False)
 cursor = connection.cursor()
