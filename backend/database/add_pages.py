@@ -188,9 +188,7 @@ def process_page(page):
 
     # Insert URL and forward index
     insert_url(url)
-    insert_forward_index(url, title, last_modified, size)
-    
-    # Added: title_forward_index
+    insert_forward_index(url, title, last_modified, size) 
     insert_title_foward_index(url, title)
 
     # Insert page relationship if parent_url exists
@@ -206,7 +204,6 @@ def process_page(page):
     # Insert title and body into the page_stemmed_word and page_stemmed_title tables
     cursor.execute("""INSERT INTO page_stemmed_title (url, stemmed_title) VALUES (?, ?)""", (url, " ".join(title_stems)))
     cursor.execute("""INSERT INTO page_stemmed_word (url, stemmed_word) VALUES (?, ?)""", (url, " ".join(body_stems)))
-    
     
     # Culate term frequency for title and body
     title_term_frequency = calculate_term_frequency(title_stems)
