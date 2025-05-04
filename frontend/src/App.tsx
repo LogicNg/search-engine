@@ -73,11 +73,9 @@ const App: React.FC = () => {
     fetch(`/search?query=${encodeURIComponent(query)}`)
       .then((res) => res.json())
       .then((data) => {
-        data.sort(
-          (a: ContentCardData, b: ContentCardData) => b.score - a.score
-        );
+        //data.sort((a: ContentCardData, b: ContentCardData) => b.score - a.score);
         setSearchResult(data);
-        console.log(data);
+        //console.log(data);
       })
       .catch((err) => console.error("Error fetching search result:", err));
   };
