@@ -73,3 +73,17 @@ CREATE TABLE IF NOT EXISTS page_rank (
   rank FLOAT NOT NULL,
   FOREIGN KEY (url) REFERENCES urls (url)
 );
+
+CREATE TABLE IF NOT EXISTS page_stemmed_word (
+  url TEXT NOT NULL,
+  stemmed_word TEXT NOT NULL,
+  PRIMARY KEY (url, stemmed_word),
+  FOREIGN KEY (url) REFERENCES urls (url)
+);
+
+CREATE TABLE IF NOT EXISTS page_stemmed_title (
+  url TEXT NOT NULL,
+  stemmed_title TEXT NOT NULL,
+  PRIMARY KEY (url, stemmed_title),
+  FOREIGN KEY (url) REFERENCES urls (url)
+);
