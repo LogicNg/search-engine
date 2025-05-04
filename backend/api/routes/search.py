@@ -276,18 +276,18 @@ def getPageDetails(url, score):
 
 @search_bp.route("/search")
 def search():
-    #print(f"Received search request")
+    # Get query input
     query = request.args.get("query", "").lower()
     if not query:
         return jsonify({"error": "Query parameter is required"}), 400
     
+    # Parse query into single words and phrases
     parsed_query = parse_query(query)
-    #print(f"Parsed query: {parsed_query}")
     
     # Count tf of each query word
     query_vector = get_tf_score(parsed_query[0])
-    #print(f"Query vector: {query_vector}")
     
+    # Get all documents in the database
     all_documents = cursor.execute("""SELECT url FROM urls""").fetchall()
     
     # Store each document's title and body similarity score for retrieval
@@ -296,7 +296,6 @@ def search():
     
     for document in all_documents:
         url = document[0]
-        #print(f"Processing {url}")
         
         if (parsed_query[1]): #have phrase
             # Check if the phrase is in the document
@@ -306,12 +305,11 @@ def search():
             if not checkIfInDocument(url, parsed_query[0]): 
                 continue
         
-        #compute cosine similarity
-        
-        #Get document vector
+        # Get document vector
         document_title_vector = getDocumentTitleVector(url)
         document_content_vector = getDocumentContentVector(url)
         
+        # Compute cosine similarity
         title_similarity[url] = computeCosineSimilarity(document_title_vector, query_vector)
         content_similarity[url] = computeCosineSimilarity(document_content_vector, query_vector)
         
@@ -322,7 +320,6 @@ def search():
     # Sort the 2 dict
     title_similarity = dict(sorted(title_similarity.items(), key=lambda item: item[1], reverse=True))
     content_similarity = dict(sorted(content_similarity.items(), key=lambda item: item[1], reverse=True))
-    
     
     # Combine the two similarity scores
     combined_similarity = {}
@@ -338,20 +335,17 @@ def search():
             combined_similarity[url] = keyword_match_weight * content_similarity[url]
         else:
             combined_similarity[url] += keyword_match_weight * content_similarity[url]
-        
-        
-        
     combined_similarity = dict(sorted(combined_similarity.items(), key=lambda item: item[1], reverse=True)) 
     
     # Get the top 10 results
     top_results = list(combined_similarity.items())[:50] 
-    #Show the top result, and the score should be in float with 10 decimal places
+    
+    # Get the top 10 results
     result = []
     for url, score in top_results:
         # Get the page details
-        print(f"{url}: {score:.10f}")
-            # Add keywords, children links, and parent links
-    
+        #print(f"{url}: {score:.10f}")
+            
         result.append(getPageDetails(url, score))
         
     
