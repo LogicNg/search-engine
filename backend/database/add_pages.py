@@ -181,6 +181,11 @@ def process_page(page):
     title_stems = indexer.stem(indexer.tokenize(title))
     body_stems = indexer.stem(indexer.tokenize(body_text))
     
+    # Insert title and body into the page_stemmed_word and page_stemmed_title tables
+    cursor.execute("""INSERT INTO page_stemmed_title (url, stemmed_title) VALUES (?, ?)""", (url, " ".join(title_stems)))
+    cursor.execute("""INSERT INTO page_stemmed_word (url, stemmed_word) VALUES (?, ?)""", (url, " ".join(body_stems)))
+    
+    
     # Culate term frequency for title and body
     title_term_frequency = calculate_term_frequency(title_stems)
     body_term_frequency = calculate_term_frequency(body_stems)
