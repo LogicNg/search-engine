@@ -4,9 +4,7 @@ import SearchResultCard from "./components/SearchResultCard";
 import SpeechRecognition, {
   useSpeechRecognition,
 } from "react-speech-recognition";
-import DropdownMenu from "./components/DropdownMenu";
-import { Select, Option } from "@material-tailwind/react";
-
+import { useQueryHistory } from "./hooks/useQueryHistory";
 
 interface ContentCardData {
   score: number;
@@ -22,7 +20,6 @@ interface ContentCardData {
 const App: React.FC = () => {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [history, setHistory] = useState<[]>([]);
   const [searchResult, setSearchResult] = useState<ContentCardData[]>([]);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -31,7 +28,15 @@ const App: React.FC = () => {
   const [searched, setSearched] = useState(false);
   const [isSuggestionClicked, setIsSuggestionClicked] = useState(false);
 
-  const [isSearching, setIsSearching] = useState(false);
+  const [isSearching, setIsSearching] = useState(false); 
+  
+  const [history, setHistory] = useState<[]>([]);
+  const {
+    queryHistory,
+    addQueryHistory,
+    deleteQueryHistory,
+    clearQueryHistory,
+  } = useQueryHistory();
 
   //Get history
   useEffect(() => {
@@ -72,7 +77,11 @@ const App: React.FC = () => {
       alert("Please enter a query");
       return;
     }
+    
     setIsSearching(true);
+        
+    addQueryHistory(query);
+
     fetch(`/search?query=${encodeURIComponent(query)}`)
       .then((res) => res.json())
       .then((data) => {
@@ -87,18 +96,18 @@ const App: React.FC = () => {
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
   const [isHistorySelected, setIsHistorySelected] = useState<boolean[]>(() =>
-    Array(history.length).fill(false)
+    Array(queryHistory.length).fill(false)
   );
 
   useEffect(() => {
-    if (history.length > isHistorySelected.length) {
+    if (queryHistory.length > isHistorySelected.length) {
       setIsHistorySelected((prev) => [
         ...prev,
-        ...Array(history.length - prev.length).fill(false),
+        ...Array(queryHistory.length - prev.length).fill(false),
       ]);
     }
     console.log("History selected:", isHistorySelected);
-  }, [history]);
+  }, [queryHistory]);
 
   //Voice input
 
@@ -146,22 +155,19 @@ const App: React.FC = () => {
           </svg>
         </button>
         {isSidebarOpen && (
-          <div className="flex-1 overflow-y-auto">
-            <h2 className="px-4 py-4 text-lg font-medium mt-5">History</h2>
-            <ul className="mt-5">
-              {history.map((history_query, index) => (
+          <div className="flex-1">
+            <div className="flex items-center justify-between px-4 py-4 ">
+              <h2 className="text-lg font-medium mt-5">History</h2>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-5 hover: cursor-pointer translate-y-2" onClick={clearQueryHistory}>
+                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+              </svg>
+            </div>
+            <ul className="mt-5 overflow-y-auto max-h-[60vh]">
+              {queryHistory.map((history_query, index) => (
                 <li
                   onClick={() => {
                     const willBeSelected = !isHistorySelected[index];
                     setIsHistorySelected((prev) => {
-                      /*
-                    const paddedPrev = history.length > prev.length 
-                      ? [...prev, ...Array(history.length - prev.length).fill(false)]
-                      : prev.slice(0, history.length);
-                    
-                    const newState = [...paddedPrev];
-                    newState[index] = !newState[index];
-                    */
                       //only one history can be selected at a time
                       const newState = Array(history.length).fill(false);
                       newState[index] = willBeSelected;
@@ -171,8 +177,16 @@ const App: React.FC = () => {
                     // update if willBeSelected or the query dont have history_query
 
                     if (willBeSelected) {
-                      setQuery(history_query["query"]);
+                      setQuery(history_query);
                     }
+                  }}
+                  onDoubleClick={() => {
+                    deleteQueryHistory(history_query);
+                    setIsHistorySelected((prev) => {
+                      const newState = [...prev];
+                      newState[index] = false;
+                      return newState;
+                    });
                   }}
                   key={index}
                   className={`flex justify-between items-center px-4 py-3 ${
@@ -184,13 +198,13 @@ const App: React.FC = () => {
                       ? "hover:bg-gray-300 bg-gray-300"
                       : "hover:bg-gray-300"
                   } overflow-y-auto hover: cursor-pointer`}
-                >
-                  <span>{history_query["query"]}</span>
+                > 
+                  <p>{history_query}</p>  
                   {/*}
                   <svg width="14" height="4" viewBox="0 0 14 4" fill="none" xmlns="http://www.w3.org/2000/svg" className="hover: cursor-pointer" stroke={isDarkMode ? "white" : "black"}>
                     <path d="M2 3.5C1.60218 3.5 1.22064 3.34196 0.93934 3.06066C0.658035 2.77936 0.5 2.39782 0.5 2C0.5 1.60218 0.658035 1.22064 0.93934 0.93934C1.22064 0.658035 1.60218 0.5 2 0.5C2.39782 0.5 2.77936 0.658035 3.06066 0.93934C3.34196 1.22064 3.5 1.60218 3.5 2C3.5 2.39782 3.34196 2.77936 3.06066 3.06066C2.77936 3.34196 2.39782 3.5 2 3.5ZM7 3.5C6.60218 3.5 6.22064 3.34196 5.93934 3.06066C5.65804 2.77936 5.5 2.39782 5.5 2C5.5 1.60218 5.65804 1.22064 5.93934 0.93934C6.22064 0.658035 6.60218 0.5 7 0.5C7.39782 0.5 7.77936 0.658035 8.06066 0.93934C8.34196 1.22064 8.5 1.60218 8.5 2C8.5 2.39782 8.34196 2.77936 8.06066 3.06066C7.77936 3.34196 7.39782 3.5 7 3.5ZM12 3.5C11.6022 3.5 11.2206 3.34196 10.9393 3.06066C10.658 2.77936 10.5 2.39782 10.5 2C10.5 1.60218 10.658 1.22064 10.9393 0.93934C11.2206 0.658035 11.6022 0.5 12 0.5C12.3978 0.5 12.7794 0.658035 13.0607 0.93934C13.342 1.22064 13.5 1.60218 13.5 2C13.5 2.39782 13.342 2.77936 13.0607 3.06066C12.7794 3.34196 12.3978 3.5 12 3.5Z" fill="white"/>
                   </svg>
-                  */}
+                  
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
@@ -204,7 +218,7 @@ const App: React.FC = () => {
                       stroke-linejoin="round"
                       d="M17.25 8.25 21 12m0 0-3.75 3.75M21 12H3"
                     />
-                  </svg>
+                  </svg>*/}
                 </li>
               ))}
             </ul>
@@ -332,10 +346,7 @@ const App: React.FC = () => {
                 </svg>
               </div>
             </div>
-            
           </div>
-           
-          
 
           {/* Suggestions */}
           {suggestions.length > 0 && !isSuggestionClicked && (
