@@ -1,76 +1,77 @@
 # Search Engine
 
+## Introduction
+This is a web-based search engine based on the Vector Space Model, built with Python 3.10, and React for the frontend
+
+For more deails, please visit our report. 
+
 ## Installation
 
-Require Python >= 3.10
+Require Python >= 3.10 and nvm = 22
 
-Create a virtual environment:
+1. Download or clone this repo to your local device and cd into the directory
+2. Create a virtual environment:
+    * For Windows
+        ```sh
+        python -m venv venv
+        ```
+    * For Unix
+        ```sh
+        python3 -m venv venv
+        ```
 
-```sh
-python -m venv venv
-```
-
-Activate the vm:
-
-- Windows: `venv\Scripts\activate`
-- Mac/Linus: `source venv/bin/activate`
-
-Install the required dependencies from `requirements.txt`:
-
-```sh
-pip install -r requirements.txt
-```
-
-# Phase 2
-
-Open 2 terminals
-
-# Start backend server on one
-
-`cd backend`
-`python3 server.py`
-
-# Start frontend on the other
-
-`cd frontend`
-`npm i`
-`npm run dev`
-
-# View the app
-
-Open your browser and navigate to `http://localhost:5173/` to view the app.
-
-## Main Script
-
-Run the main script:
-
-```sh
-python main.py
-```
-
-The script does the following things:
-
-1. Creates the necessary database tables in `documents.db`.
-2. Fetches and saves web pages starting from a specified base URL.
-3. Generates a `spider_result.txt` file containing the fetched and indexed data.
+3. Activate the vm:
+    * For Windows
+        ```sh
+        venv\Scripts\activate
+        ```
+    * For Unix
+        ```sh
+        source venv/bin/activate
+        ```
+5. Setup for backend server (Ensure there are not other server running on port 5000)
+    * cd into `backend/`
+    * Install the required dependencies from `requirements.txt`: 
+        ```sh
+        pip install -r requirements.txt
+        ```
+    * Run the `main.py`, it will crawl the webpages, perform indexing, and start the sever. This may takes 1-2 mins.
+        * For Windows
+            ```sh
+            python main.py
+            ```
+        * For Unix
+            ```sh
+            python3 main.py
+            ```
+    * The server should be running on `http://127.0.0.1:5000/`
+5. Now open another terminal for the frontend setup (Need not to be in the vm, and ensure no other server running on 5173)
+    * cd into `frontend/`
+    * If you don't have node js in your environment, you can install it here https://nodejs.org/en/download. In the download settings, choose version 22, your os, using nvm, and with npm
+    * Confirm you have the right nvm version (22) by
+         ```sh
+            nvm use 22
+        ```
+         ```sh
+            node -v #This should give v22.XX.XX
+            nvm current #This should be same as above
+            npm -v #This should be v10.9.2
+        ```
+    * Install the required packages by
+        ```sh
+            npm i
+        ```
+    * If there are no any dependencies issues, run 
+        ```sh
+            npm run dev
+        ```
+    * The frontend server should be hosted at `http://localhost:5173/`
+    * You can use the search engine there
 
 ## Clean up
 
-Deactivate the vm:
+Deactivate the python vm:
 
 ```sh
 deactivate
 ```
-
-## DB design
-
-Take a look at tables.sql for the database schema. Here is a brief overview of the tables:
-
-| Table              | Purpose                                                                                    |
-| ------------------ | ------------------------------------------------------------------------------------------ |
-| urls               | Stores unique URLs                                                                         |
-| page_relationships | Captures the relationships between pages                                                   |
-| words              | Stores unique words                                                                        |
-| forward_index      | Stores metadata about each URL, such as the title, last modified date, and size            |
-| inverted_index     | Maps words to URLs, along with the term frequency of each word in the URL                  |
-| keyword_statistics | Stores the TF-IDF (Term Frequency-Inverse Document Frequency) score for each word-URL pair |
