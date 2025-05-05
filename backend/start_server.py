@@ -1,5 +1,6 @@
 from api.app import app
-#from api.routes.search_logic import search_bp
+
+# from api.routes.search_logic import search_bp
 from api.routes.search import search_bp
 from api.routes.suggestions import suggestions_bp
 
