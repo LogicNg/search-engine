@@ -1,15 +1,197 @@
 import math
+import re
+from collections import Counter, defaultdict
 
 from flask import Blueprint, jsonify, request
+from nltk.stem import PorterStemmer
 
 from api.utils.get_cursor import get_cursor
 from api.utils.levenshtein_distance import levenshtein_distance
+from database.db import connection, cursor
+
+# For some reason i cannot use get_cursor
+# cursor = get_cursor()
+
 
 search_bp = Blueprint("search", __name__)
 
-"""
-# Sample result
-pages = [
+title_match_weight = 0.7
+keyword_match_weight = 0.3
+
+
+stop_words = []
+with open("./database/stopwords.txt", "r") as f:
+    stop_words = set(f.read().split())
+
+stemmer = PorterStemmer()
+title_index = defaultdict(list)
+body_index = defaultdict(list)
+
+
+def parse_query(query):
+    """
+    Parse query into single word and phrases, the remove stop words and stem the keywords.
+    """
+
+    word_list = []
+    phrase_list = []
+
+    # Handle single words
+    for word in query.split():
+        # remove any double quotation
+        word = word.replace('"', "")
+
+        processed_word = re.sub(r"[^a-zA-Z-]+", "", word.lower())
+        if processed_word in stop_words:
+            continue
+        stemmed_word = stemmer.stem(word)
+        print(f"input word: {word}, stemmed word: {stemmed_word}")
+        word_list.append(stemmed_word)
+
+    # Remove double quotation for words in word_list
+    word_list = [word.replace('"', "") for word in word_list]
+
+    # Handle phrases
+    phrase_pattern = re.compile(r'"([^"]*)"')
+    phrases = phrase_pattern.findall(query)
+    for phrase in phrases:
+        phrase_word = phrase.split()
+        processed_phrase_word = []
+        for word in phrase_word:
+            word = word.lower()
+            if word not in stop_words:
+                stemmed_word = stemmer.stem(word)
+                processed_phrase_word.append(stemmed_word)
+
+        processed_phrase_word = " ".join(processed_phrase_word)
+        processed_stemmed_phrase = r"(?<!\S){}(?!\S)".format(processed_phrase_word)
+        phrase_list.append(processed_stemmed_phrase)
+
+    return [word_list, phrase_list]
+
+
+def get_tf_score(query):
+    word_tf = Counter(query)
+    vector = {}
+    # output as {"word": tf, ...}
+    for word, tf in list(word_tf.items()):
+        vector[word] = tf
+
+    return vector
+
+
+def checkIfInDocument(url, query_vector):
+    title = cursor.execute(
+        """SELECT stemmed_title FROM page_stemmed_title WHERE url = ?""",
+        (url,),
+    ).fetchone()[0]
+
+    content = cursor.execute(
+        """SELECT stemmed_word FROM page_stemmed_word WHERE url = ?""",
+        (url,),
+    ).fetchone()[0]
+
+    # Turn to a list
+    title = title.split()
+    content = content.split()
+
+    for word in query_vector:
+        # Check if the word is in the title
+        if word in title or word in content:
+            return True
+
+    return False
+
+
+def checkIfPhraseInDocument(url, phrase_vector):
+    title = cursor.execute(
+        """SELECT stemmed_title FROM page_stemmed_title WHERE url = ?""",
+        (url,),
+    ).fetchone()[0]
+
+    content = cursor.execute(
+        """SELECT stemmed_word FROM page_stemmed_word WHERE url = ?""",
+        (url,),
+    ).fetchone()[0]
+
+    # Turn to a list
+    # title = title.split()
+    # content = content.split()
+
+    for phrase in phrase_vector:
+        # Check if the word is in the title
+        if re.search(phrase, title):
+            # print(f"Found phrase: {phrase} in {url}")
+            return True
+        if re.search(phrase, content):
+            # print(f"Found phrase: {phrase} in {url}")
+            return True
+
+    return False
+
+
+def computeCosineSimilarity(document_vector, query_vector):
+    # both document_vector and query_vector are dict
+
+    if len(document_vector) == 0 or len(query_vector) == 0:
+        return 0.0
+
+    # Remove unmatched words
+    mathced_document_vector = {}
+    for key, value in document_vector.items():
+        if key in query_vector:
+            mathced_document_vector[key] = value
+
+    matched_query_vector = {}
+    for key, value in query_vector.items():
+        if key in document_vector:
+            matched_query_vector[key] = value
+
+    # Compute cosine similarity
+    dot_product = sum(
+        mathced_document_vector[word] * matched_query_vector[word]
+        for word in matched_query_vector
+    )
+    magnitude_document = sum(value**2 for value in document_vector.values()) ** 0.5
+
+    # IDK there will be divide by 0
+    if magnitude_document == 0:
+        return 0.0
+
+    return dot_product / magnitude_document
+
+
+def getDocumentContentVector(url):
+    document_vector = {}
+    # Get all words and their tf_idf
+    word_and_tfidf = cursor.execute(
+        """SELECT word, tf_idf FROM word_statistics WHERE url = ?""",
+        (url,),
+    )
+
+    for word, tf_idf in word_and_tfidf:
+        document_vector[word] = tf_idf
+
+    return document_vector
+
+
+def getDocumentTitleVector(url):
+    document_vector = {}
+    # Get all words and their tf_idf
+    word_and_tfidf = cursor.execute(
+        """SELECT title, tf_idf FROM title_statistics WHERE url = ?""",
+        (url,),
+    )
+
+    for word, tf_idf in word_and_tfidf:
+        document_vector[word] = tf_idf
+
+    return document_vector
+
+
+def getPageDetails(url, score):
+    # Get the page details
+    """
     {
         "score": 0.99999,
         "title": "Home Move (2001) sfasdfasdfsadfasdfasdfas",
@@ -33,360 +215,155 @@ pages = [
             "http://parentlink2.com",
             "http://parentlink3.com",
         ],
-    },
-    {
-        "score": 0.87654,
-        "title": "Home Research Paper on AI (2023)",
-        "link": "https://ai-research.org/papers/2023",
-        "last_modification_date": "2023-11-15T14:30:00Z",
-        "file_size": "2.4MB",
-        "keywords": {"AI": "8", "Machine Learning": "6", "Neural Networks": "5"},
-        "children_links": [
-            "https://ai-research.org/references/1",
-            "https://ai-research.org/references/2",
-        ],
-        "parent_links": ["https://ai-research.org/main"],
-    },
-    {
-        "score": 0.25,
-        "title": "Cooking Recipes Collection",
-        "link": "https://food-blog.com/recipes",
-        "last_modification_date": "2022-09-22T08:15:00Z",
-        "file_size": "1.2MB",
-        "keywords": {"Recipes": "10", "Cooking": "7", "Food": "5"},
-        "children_links": [
-            "https://food-blog.com/italian",
-            "https://food-blog.com/asian",
-            "https://food-blog.com/desserts",
-        ],
-        "parent_links": ["https://food-blog.com"],
-    },
-    {
-        "score": 0.55,
-        "title": "Cooking Recipes Collection",
-        "link": "https://food-blog.com/recipes",
-        "last_modification_date": "2022-09-22T08:15:00Z",
-        "file_size": "1.2MB",
-        "keywords": {"Recipes": "10", "Cooking": "7", "Food": "5"},
-        "children_links": [
-            "https://food-blog.com/italian",
-            "https://food-blog.com/asian",
-            "https://food-blog.com/desserts",
-        ],
-        "parent_links": ["https://food-blog.com"],
-    },
-    {
-        "score": 0.98765,
-        "title": "Home Annual Financial Report 2022",
-        "link": "https://company.com/financials/2022",
-        "last_modification_date": "2023-03-01T09:00:00Z",
-        "file_size": "5.7MB",
-        "keywords": {"Finance": "12", "Report": "8", "2022": "5"},
-        "children_links": [],
-        "parent_links": ["https://company.com/financials"],
-    },
-    {
-        "score": 0.01,
-        "title": "Travel Guide: Japan 2021",
-        "link": "https://travel-site.com/japan-guide",
-        "last_modification_date": "2021-05-10T16:45:00Z",
-        "file_size": "3.1MB",
-        "keywords": {"Japan": "15", "Travel": "10", "Guide": "7"},
-        "children_links": [
-            "https://travel-site.com/japan/hotels",
-            "https://travel-site.com/japan/transport",
-        ],
-        "parent_links": [
-            "https://travel-site.com/guides",
-            "https://travel-site.com/asia",
-        ],
-    },
-]
-"""
-
-
-def calculate_cosine_similarity(
-    query_tokens, doc_vector, query_magnitude, token_similarities, enable_fuzzy
-):
+    }
     """
-    Calculate cosine similarity between query and document vectors with fuzzy matching support.
+    # 5 decimal places
+    score = "{:.5f}".format(score)
+    page_details = cursor.execute(
+        """SELECT title, last_modified_date, size FROM forward_index WHERE url = ?""",
+        (url,),
+    ).fetchone()
 
-    Args:
-        query_tokens: List of tokens in the search query
-        doc_vector: Dictionary of document terms and their weights
-        query_magnitude: Magnitude of the query vector
-        token_similarities: Dictionary mapping query tokens to similar terms
-        enable_fuzzy: Whether to use fuzzy matching
+    # Get top 5 stemmed keyword from the page (from inverted_index and title_inverted_index)
+    content_keywords = cursor.execute(
+        """SELECT word, term_frequency FROM inverted_index WHERE url = ? ORDER BY term_frequency DESC""",
+        (url,),
+    ).fetchall()
 
-    Returns:
-        float: Cosine similarity score
-    """
-    if not doc_vector:
-        return 0
+    title_keywords = cursor.execute(
+        """SELECT title, term_frequency FROM title_inverted_index WHERE url = ? ORDER BY term_frequency DESC""",
+        (url,),
+    ).fetchall()
 
-    doc_magnitude = math.sqrt(sum(v * v for v in doc_vector.values()))
-    if doc_magnitude == 0:
-        return 0
+    # print(f"Content keywords: {content_keywords}")
+    # print(f"Title keywords: {title_keywords}")
+    # Combine 2 lists and form a dict, then extract the top 5
+    keywords = {}
+    for word, tf in content_keywords:
+        keywords[word] = tf
+    for title, tf in title_keywords:
+        if title in keywords:
+            keywords[title] += tf
+        else:
+            keywords[title] = tf
 
-    dot_product = 0
-    # For each query token, find the best matching document token
-    for q_token in query_tokens:
-        best_match_score = 0
+    sorted_keywords = sorted(keywords.items(), key=lambda item: item[1], reverse=True)
+    top_keywords = sorted_keywords[:5]
 
-        # Check exact match first
-        if q_token in doc_vector:
-            best_match_score = doc_vector[q_token]
-        elif enable_fuzzy:
-            # Check fuzzy matches
-            for doc_token in doc_vector:
-                if doc_token in token_similarities.get(q_token, {}):
-                    similarity = token_similarities[q_token][doc_token]
-                    match_score = doc_vector[doc_token] * similarity
-                    best_match_score = max(best_match_score, match_score)
+    dictkeyword = {word: str(tf) for word, tf in top_keywords}
 
-        dot_product += best_match_score
+    # Get parent and children links
+    children_links = cursor.execute(
+        """SELECT child_url FROM page_relationships WHERE parent_url = ?""",
+        (url,),
+    ).fetchall()
 
-    return dot_product / (doc_magnitude * query_magnitude)
+    parent_links = cursor.execute(
+        """SELECT parent_url FROM page_relationships WHERE child_url = ?""",
+        (url,),
+    ).fetchall()
 
+    children_links = [child[0] for child in children_links]
+    parent_links = [parent[0] for parent in parent_links]
 
-def format_file_size(size_bytes):
-    """
-    Format file size in human-readable format.
-
-    Args:
-        size_bytes: Size in bytes
-
-    Returns:
-        str: Formatted size string (e.g., "5.7MB")
-    """
-    if size_bytes < 1024:
-        return f"{size_bytes}B"
-    elif size_bytes < 1024 * 1024:
-        return f"{size_bytes/1024:.1f}KB"
+    if page_details:
+        title, last_modified_date, size = page_details
+        return {
+            "score": score,  # Placeholder for score
+            "title": title,
+            "link": url,
+            "last_modification_date": last_modified_date,
+            "file_size": f"{size}B",
+            "keywords": dictkeyword,
+            "children_links": children_links,
+            "parent_links": parent_links,
+        }
     else:
-        return f"{size_bytes/(1024*1024):.1f}MB"
-
-
-def get_expanded_tokens(query_tokens, cursor, fuzzy_threshold, enable_fuzzy):
-    """
-    Get expanded tokens with fuzzy matching if enabled.
-
-    Args:
-        query_tokens: Original query tokens
-        cursor: Database cursor
-        fuzzy_threshold: Maximum edit distance for fuzzy matches
-        enable_fuzzy: Whether to use fuzzy matching
-
-    Returns:
-        tuple: (expanded_tokens, token_similarities)
-    """
-    expanded_tokens = set(query_tokens)
-    token_similarities = {}  # Store similarity scores for expanded tokens
-
-    if not enable_fuzzy:
-        return list(expanded_tokens), token_similarities
-
-    # Get all words from the tokens table for fuzzy matching
-    cursor.execute("SELECT word FROM tokens")
-    all_words = [row[0] for row in cursor.fetchall()]
-
-    # For each token in the query, find similar words
-    for token in query_tokens:
-        token_similarities[token] = {}  # Initialize similarity dict for token
-
-        for word in all_words:
-            if word == token:
-                token_similarities[token][word] = 1.0  # Exact match has similarity 1.0
-                continue
-
-            distance = levenshtein_distance(token, word)
-            if distance <= fuzzy_threshold:
-                # Calculate similarity score (1.0 for exact match, decreasing as distance increases)
-                similarity = 1.0 - (distance / (fuzzy_threshold + 1))
-                expanded_tokens.add(word)
-                token_similarities[token][word] = similarity
-
-    return list(expanded_tokens), token_similarities
-
-
-def get_document_vector(cursor, url, expanded_tokens, vector_type):
-    """
-    Get document vector based on term frequency or TF-IDF.
-
-    Args:
-        cursor: Database cursor
-        url: Document URL
-        expanded_tokens: List of query tokens with expansions
-        vector_type: Either 'title' for TF-IDF or 'body' for term frequency
-
-    Returns:
-        dict: Document vector mapping terms to weights
-    """
-    placeholders = ",".join(["?"] * len(expanded_tokens))
-
-    if vector_type == "title":
-        query = f"""
-            SELECT word, tf_idf
-            FROM keyword_statistics
-            WHERE url = ? AND word IN ({placeholders})
-        """
-    else:  # body
-        query = f"""
-            SELECT word, term_frequency
-            FROM inverted_index
-            WHERE url = ? AND word IN ({placeholders})
-        """
-
-    cursor.execute(query, [url] + expanded_tokens)
-    return {word: weight for word, weight in cursor.fetchall()}
-
-
-def get_document_metadata(cursor, url):
-    """
-    Get metadata for a document including keywords, children and parent links.
-
-    Args:
-        cursor: Database cursor
-        url: Document URL
-
-    Returns:
-        tuple: (keywords, children_links, parent_links)
-    """
-    # Get top keywords
-    cursor.execute(
-        """
-        SELECT i.word, i.term_frequency
-        FROM inverted_index i
-        WHERE i.url = ?
-        ORDER BY i.term_frequency DESC
-        LIMIT 10
-    """,
-        (url,),
-    )
-    keywords = {word: str(freq) for word, freq in cursor.fetchall()}
-
-    # Get children links
-    cursor.execute(
-        """
-        SELECT child_url
-        FROM page_relationships
-        WHERE parent_url = ?
-    """,
-        (url,),
-    )
-    children_links = [row[0] for row in cursor.fetchall()]
-
-    # Get parent links
-    cursor.execute(
-        """
-        SELECT parent_url
-        FROM page_relationships
-        WHERE child_url = ?
-    """,
-        (url,),
-    )
-    parent_links = [row[0] for row in cursor.fetchall()]
-
-    return keywords, children_links, parent_links
+        return None
 
 
 @search_bp.route("/search")
 def search():
-    """
-    Search endpoint that returns documents matching the query.
-
-    Query parameters:
-        query (str): Search query
-        fuzzy_threshold (int, optional): Maximum edit distance for fuzzy matching. Default: 2
-        fuzzy (str, optional): Enable fuzzy matching ("true" or "false"). Default: "true"
-
-    Returns:
-        JSON: Search results with document metadata
-    """
-    # Extract and validate query parameters
+    # Get query input
     query = request.args.get("query", "").lower()
-    fuzzy_threshold = int(request.args.get("fuzzy_threshold", "2"))
-    enable_fuzzy = request.args.get("fuzzy", "true").lower() == "true"
-
     if not query:
         return jsonify({"error": "Query parameter is required"}), 400
 
-    # Get query tokens
-    query_tokens = query.split()
-    if not query_tokens:
-        return jsonify({"results": []})
+    # Parse query into single words and phrases
+    parsed_query = parse_query(query)
 
-    cursor = get_cursor()
+    # Count tf of each query word
+    query_vector = get_tf_score(parsed_query[0])
 
-    # Get expanded tokens with fuzzy matching if enabled
-    expanded_tokens, token_similarities = get_expanded_tokens(
-        query_tokens, cursor, fuzzy_threshold, enable_fuzzy
-    )
+    # Get all documents in the database
+    all_documents = cursor.execute("""SELECT url FROM urls""").fetchall()
 
-    # Find documents matching any token
-    placeholders = ",".join(["?"] * len(expanded_tokens))
-    cursor.execute(
-        f"""
-            SELECT DISTINCT f.url, f.title, f.last_modified_date, f.size, p.rank
-            FROM forward_index f
-            JOIN page_rank p ON f.url = p.url
-            JOIN inverted_index i ON f.url = i.url
-            WHERE i.word IN ({placeholders})
-        """,
-        expanded_tokens,
-    )
+    # Store each document's title and body similarity score for retrieval
+    title_similarity = {}
+    content_similarity = {}
 
-    documents = cursor.fetchall()
-    results = []
+    for document in all_documents:
+        url = document[0]
 
-    # Create query vector (binary: 1 if term is present)
-    query_vector = {token: 1 for token in query_tokens}
-    query_magnitude = math.sqrt(len(query_tokens))  # Since all weights are 1
+        if parsed_query[1]:  # have phrase
+            # Check if the phrase is in the document
+            if not checkIfPhraseInDocument(url, parsed_query[1]):
+                continue
+        else:
+            if not checkIfInDocument(url, parsed_query[0]):
+                continue
 
-    for doc in documents:
-        url, title, last_modified, size, page_rank = doc
+        # Get document vector
+        document_title_vector = getDocumentTitleVector(url)
+        document_content_vector = getDocumentContentVector(url)
 
-        # Calculate title and body similarity scores
-        title_vector = get_document_vector(cursor, url, expanded_tokens, "title")
-        body_vector = get_document_vector(cursor, url, expanded_tokens, "body")
-
-        title_cos_sim = calculate_cosine_similarity(
-            query_tokens,
-            title_vector,
-            query_magnitude,
-            token_similarities,
-            enable_fuzzy,
+        # Compute cosine similarity
+        title_similarity[url] = computeCosineSimilarity(
+            document_title_vector, query_vector
+        )
+        content_similarity[url] = computeCosineSimilarity(
+            document_content_vector, query_vector
         )
 
-        body_cos_sim = calculate_cosine_similarity(
-            query_tokens, body_vector, query_magnitude, token_similarities, enable_fuzzy
-        )
+        # print(f"Title similarity for {url}: {title_similarity[url]}")
+        # print(f"Content similarity for {url}: {content_similarity[url]}")
+        # print("=" * 20)
 
-        # Calculate final score using the formula:
-        # (0.7 * CosSim(d_t,Q) + 0.3 * CosSim(d_b,Q)) * PageRank(d)
-        final_score = (0.7 * title_cos_sim + 0.3 * body_cos_sim) * page_rank
+    # Sort the 2 dict
+    title_similarity = dict(
+        sorted(title_similarity.items(), key=lambda item: item[1], reverse=True)
+    )
+    content_similarity = dict(
+        sorted(content_similarity.items(), key=lambda item: item[1], reverse=True)
+    )
 
-        # Skip documents with very low scores
-        if final_score < 0.01:
-            continue
+    # Combine the two similarity scores
+    combined_similarity = {}
 
-        # Get document metadata
-        keywords, children_links, parent_links = get_document_metadata(cursor, url)
+    for url in title_similarity:
+        if url in combined_similarity:
+            combined_similarity[url] += title_match_weight * title_similarity[url]
+        else:
+            combined_similarity[url] = title_match_weight * title_similarity[url]
 
-        # Create result object
-        result = {
-            "score": final_score,
-            "title": title,
-            "link": url,
-            "last_modification_date": last_modified,
-            "file_size": format_file_size(size),
-            "keywords": keywords,
-            "children_links": children_links,
-            "parent_links": parent_links,
-        }
+    for url in content_similarity:
+        if url not in combined_similarity:
+            combined_similarity[url] = keyword_match_weight * content_similarity[url]
+        else:
+            combined_similarity[url] += keyword_match_weight * content_similarity[url]
+    combined_similarity = dict(
+        sorted(combined_similarity.items(), key=lambda item: item[1], reverse=True)
+    )
 
-        results.append(result)
+    # Get the top 10 results
+    top_results = list(combined_similarity.items())[:50]
 
-    # Sort results by score in descending order and return top 10
-    results.sort(key=lambda x: x["score"], reverse=True)
-    return jsonify({"results": results[:10]})
+    # Get the top 10 results
+    result = []
+    for url, score in top_results:
+        # Get the page details
+        # print(f"{url}: {score:.10f}")
+
+        result.append(getPageDetails(url, score))
+
+    return jsonify(result)
