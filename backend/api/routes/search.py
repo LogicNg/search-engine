@@ -220,7 +220,7 @@ def getPageDetails(url, score):
     # 5 decimal places
     score = "{:.5f}".format(score)
     page_details = cursor.execute(
-        """SELECT title, last_modified_date, size FROM forward_index WHERE url = ?""",
+        """SELECT title, last_modified_date, size FROM page_information WHERE url = ?""",
         (url,),
     ).fetchone()
 
@@ -291,7 +291,8 @@ def search():
 
     # Parse query into single words and phrases
     parsed_query = parse_query(query)
-
+    print(f"Parsed query: {parsed_query}")
+    
     # Count tf of each query word
     query_vector = get_tf_score(parsed_query[0])
 
