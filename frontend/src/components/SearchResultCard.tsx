@@ -10,6 +10,7 @@ interface ContentCardProps {
   children_links: string[];
   parent_links: string[];
   isDarkMode: boolean;
+  onClick?: () => void;
 }
 
 const SearchResultCard: React.FC<ContentCardProps> = ({
@@ -22,6 +23,7 @@ const SearchResultCard: React.FC<ContentCardProps> = ({
   children_links,
   parent_links,
   isDarkMode,
+  onClick,
 }) => {
   //Sort the keywords by score in descending order
   const sortedKeywords = Object.entries(keywords).sort(([, scoreA], [, scoreB]) => {
@@ -161,6 +163,19 @@ const SearchResultCard: React.FC<ContentCardProps> = ({
           )}
         </div>
       )}
+
+      {/* Get similar page button on right most */}
+      <div className="flex justify-end mt-4">
+        <div
+          rel="noopener noreferrer"
+          onClick={onClick}
+          className={`${
+            isDarkMode ? "bg-[#21B8CD]" : "bg-[#21B8CD]"
+          } text-white text-sm px-4 py-2 rounded-md hover:bg-[#1DBBD1] transition-colors transform hover:scale-105 active:scale-95`}
+        >
+          Get Similar Pages
+        </div>
+      </div>
     </div>
   );
 };
