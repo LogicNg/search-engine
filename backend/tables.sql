@@ -24,11 +24,17 @@ CREATE TABLE IF NOT EXISTS tokens (
   ngram_size INT
 );
 
-CREATE TABLE IF NOT EXISTS forward_index (
+CREATE TABLE IF NOT EXISTS page_information (
   url TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   last_modified_date TIMESTAMP NOT NULL,
   size INT NOT NULL,
+  FOREIGN KEY (url) REFERENCES urls (url)
+);
+
+CREATE TABLE IF NOT EXISTS forward_index (
+  url TEXT PRIMARY KEY,
+  word TEXT NOT NULL,
   FOREIGN KEY (url) REFERENCES urls (url)
 );
 
