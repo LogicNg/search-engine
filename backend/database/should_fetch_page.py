@@ -23,7 +23,7 @@ def should_fetch_page(url: str, last_modified: str) -> bool:
     Returns:
         bool: True if the page should be fetched, False otherwise.
     """
-    cursor.execute("SELECT last_modified_date FROM forward_index WHERE url = ?", (url,))
+    cursor.execute("SELECT last_modified_date FROM page_information WHERE url = ?", (url,))
     result = cursor.fetchone()
 
     if result is None:

@@ -61,7 +61,8 @@ def custom_pagerank(graph, alpha=0.85, max_iterations=100, tolerance=1.0e-6):
             break
 
     # Normalize scores to sum to 1
-    total = sum(pr.values())
+    total = sum(score**2 for score in pr.values())
+    print(f"Total PageRank score: {total}")
     return {node: score / total for node, score in pr.items()}
 
 

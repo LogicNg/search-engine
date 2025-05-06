@@ -14,11 +14,11 @@ def insert_url(url):
     cursor.execute("INSERT OR IGNORE INTO urls (url) VALUES (?)", (url,))
 
 
-def insert_forward_index(url, title, last_modified, size):
+def insert_page_information(url, title, last_modified, size):
     """Insert or update a page's metadata into the forward_index table."""
     cursor.execute(
         """
-        INSERT INTO forward_index (url, title, last_modified_date, size)
+        INSERT INTO page_information (url, title, last_modified_date, size)
         VALUES (?, ?, ?, ?)
         ON CONFLICT(url) DO UPDATE SET
             title=excluded.title,
@@ -28,6 +28,17 @@ def insert_forward_index(url, title, last_modified, size):
         (url, title, last_modified, size),
     )
 
+def insert_foward_index(url, word):
+    """Insert or update a page's title into the forward_index table."""
+    cursor.execute(
+        """
+        INSERT INTO forward_index (url, word)
+        VALUES (?, ?)
+        ON CONFLICT(url) DO UPDATE SET
+            word=excluded.word
+        """,
+        (url, word),
+    )
 
 def insert_title_foward_index(url, title):
     """Insert or update a page's title into the forward_index table."""
@@ -196,7 +207,8 @@ def process_page(page):
 
     # Insert URL and forward index
     insert_url(url)
-    insert_forward_index(url, title, last_modified, size)
+    insert_page_information(url, title, last_modified, size)
+    insert_foward_index(url, body_text)
     insert_title_foward_index(url, title)
 
     # Insert page relationship if parent_url exists
