@@ -281,6 +281,18 @@ def getPageDetails(url, score):
     else:
         return None
 
+# Handle get page rank result
+def getPageRank(url):
+    # Get the page rank
+    page_rank = cursor.execute(
+        """SELECT rank FROM page_rank WHERE url = ?""",
+        (url,),
+    ).fetchone()
+
+    if page_rank:
+        return page_rank[0]
+    else:
+        return None
 
 @search_bp.route("/search")
 def search():
@@ -291,7 +303,7 @@ def search():
 
     # Parse query into single words and phrases
     parsed_query = parse_query(query)
-    print(f"Parsed query: {parsed_query}")
+    #print(f"Parsed query: {parsed_query}")
     
     # Count tf of each query word
     query_vector = get_tf_score(parsed_query[0])
@@ -355,6 +367,13 @@ def search():
     combined_similarity = dict(
         sorted(combined_similarity.items(), key=lambda item: item[1], reverse=True)
     )
+    
+    # Include page rank
+    for url in combined_similarity:
+        page_rank = getPageRank(url)
+        if page_rank is not None:
+            combined_similarity[url] *= page_rank
+    
 
     # Get the top 10 results
     top_results = list(combined_similarity.items())[:50]
