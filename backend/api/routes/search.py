@@ -364,9 +364,7 @@ def search():
             combined_similarity[url] = keyword_match_weight * content_similarity[url]
         else:
             combined_similarity[url] += keyword_match_weight * content_similarity[url]
-    combined_similarity = dict(
-        sorted(combined_similarity.items(), key=lambda item: item[1], reverse=True)
-    )
+    
     
     # Include page rank
     for url in combined_similarity:
@@ -374,15 +372,18 @@ def search():
         if page_rank is not None:
             combined_similarity[url] *= page_rank
     
-
-    # Get the top 10 results
+    combined_similarity = dict(
+        sorted(combined_similarity.items(), key=lambda item: item[1], reverse=True)
+    )
+    
+    # Get the top 50 results
     top_results = list(combined_similarity.items())[:50]
 
-    # Get the top 10 results
+    # Get the top 50 results
     result = []
     for url, score in top_results:
         # Get the page details
-        # print(f"{url}: {score:.10f}")
+        #print(f"{url}: {score:.10f}")
 
         result.append(getPageDetails(url, score))
 
