@@ -35,14 +35,23 @@ Require Python >= 3.10 and nvm = 22
         ```sh
         pip install -r requirements.txt
         ```
-    * Run the `main.py`, it will crawl the webpages, perform indexing, and start the sever. This may takes 1-2 mins.
+    * Run the `craw_and_save.py`, it will crawl the webpages, perform indexing, and store them to database. This may takes 1-2 mins.
         * For Windows
             ```sh
-            python main.py
+            python crawl_and_save.py
             ```
         * For Unix
             ```sh
-            python3 main.py
+            python3 crawl_and_save.py
+            ```
+    * After that, run the `start_server.py`, to start the backend server powered by Flask
+        * For Windows
+            ```sh
+            python start_server.py
+            ```
+        * For Unix
+            ```sh
+            python3 start_server.py
             ```
     * The server should be running on `http://127.0.0.1:5000/`
 5. Now open another terminal for the frontend setup (Need not to be in the vm, and ensure no other server running on 5173)
@@ -75,3 +84,17 @@ Deactivate the python vm:
 ```sh
 deactivate
 ```
+
+## File Descriptions
+### Frontend
+* [main.tsx](./frontend/src/main.tsx)
+    *  Main file for React server
+* [App.tsx](./frontend/src/App.tsx)
+    *  Web interface, basically all UI elements are implemented here
+
+### Backend
+* [/api](./backend/api/)
+* [/crawler](./backend/crawler/)
+* [/database](./backend/database/)
+* [/start_server](./backend/start_server/)
+* [/crawl_and_save](./backend/crawl_and_save/)
