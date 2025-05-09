@@ -71,6 +71,9 @@ def parse_query(query):
 
 
 def get_tf_score(query):
+    """
+    Get the tf score of each word in the query.
+    """
     word_tf = Counter(query)
     vector = {}
     # output as {"word": tf, ...}
@@ -81,6 +84,9 @@ def get_tf_score(query):
 
 
 def checkIfInDocument(url, query_vector):
+    """
+    Check if the query vector is in the document.
+    """
     title = cursor.execute(
         """SELECT stemmed_title FROM page_stemmed_title WHERE url = ?""",
         (url,),
@@ -104,6 +110,9 @@ def checkIfInDocument(url, query_vector):
 
 
 def checkIfPhraseInDocument(url, phrase_vector):
+    """
+    Check if the phrase vector is in the document.
+    """
     title = cursor.execute(
         """SELECT stemmed_title FROM page_stemmed_title WHERE url = ?""",
         (url,),
@@ -131,7 +140,9 @@ def checkIfPhraseInDocument(url, phrase_vector):
 
 
 def computeCosineSimilarity(document_vector, query_vector):
-    # both document_vector and query_vector are dict
+    """
+    Compute the cosine similarity between the document vector and the query vector.
+    """
 
     if len(document_vector) == 0 or len(query_vector) == 0:
         return 0.0
@@ -162,6 +173,9 @@ def computeCosineSimilarity(document_vector, query_vector):
 
 
 def getDocumentContentVector(url):
+    """
+    Get the document vector for the content of the page.
+    """
     document_vector = {}
     # Get all words and their tf_idf
     word_and_tfidf = cursor.execute(
@@ -176,6 +190,9 @@ def getDocumentContentVector(url):
 
 
 def getDocumentTitleVector(url):
+    """
+    Get the document vector for the title of the page.
+    """
     document_vector = {}
     # Get all words and their tf_idf
     word_and_tfidf = cursor.execute(
