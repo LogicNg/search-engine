@@ -104,7 +104,7 @@ deactivate
   - Includes scripts for crawling web pages and saving the data for indexing.
 - [/database](./backend/database/)
   - Manages database operations, including creating tables, inserting data, and computing statistics for search functionality.
-- [/start_server](./backend/start_server/)
+- [/start_server](./backend/start_server.py)
   - Script to start the Flask backend server.
-- [/crawl_and_save](./backend/crawl_and_save/)
+- [/crawl_and_save](./backend/crawl_and_save.py)
   - Orchestrates the crawling, indexing, and saving of web pages into the database.
