@@ -4,5 +4,3 @@ nltk
 Flask
 flask-cors
 networkx
-matplotlib
-scipy
