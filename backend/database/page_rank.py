@@ -1,6 +1,5 @@
 import sqlite3
 
-import matplotlib.pyplot as plt
 import networkx as nx
 
 from database.db import connection, cursor
@@ -107,53 +106,3 @@ def calculate_page_rank():
     except sqlite3.Error as e:
         connection.rollback()
         print(f"Database error: {e}")
-
-
-def plot_page_graph():
-    """Visualize the page relationship graph with PageRank scores"""
-
-    # Query the page relationships
-    cursor.execute("SELECT parent_url, child_url FROM page_relationships")
-    relationships = cursor.fetchall()
-
-    # Create a directed graph
-    graph = nx.DiGraph()
-
-    # Helper function to extract page name from URL
-    def extract_page_name(url):
-        return url.split("/")[-1] if "/" in url else url
-
-    # Add edges to the graph with extracted page names
-    for parent, child in relationships:
-        graph.add_edge(extract_page_name(parent), extract_page_name(child))
-
-    # Calculate PageRank for visualization using our custom implementation
-    pagerank_scores = custom_pagerank(graph)
-
-    # Scale node sizes based on PageRank
-    node_sizes = [20000 * score for score in pagerank_scores.values()]
-
-    # Draw the graph
-    plt.figure(figsize=(12, 8))
-    pos = nx.spring_layout(graph)
-
-    # Create node labels with PageRank scores
-    node_labels = {
-        node: f"{node}\n({score:.4f})" for node, score in pagerank_scores.items()
-    }
-
-    # Draw the graph with custom labels
-    nx.draw(
-        graph,
-        pos,
-        labels=node_labels,  # Use our custom labels directly here
-        with_labels=True,
-        node_size=node_sizes,
-        node_color="lightblue",
-        font_size=10,
-        font_weight="bold",
-        arrowsize=20,
-    )
-
-    plt.title("Page Relationships Graph with PageRank Scores")
-    plt.show()
